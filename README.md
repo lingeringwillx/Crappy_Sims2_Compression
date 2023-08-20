@@ -9,6 +9,8 @@ This project utilizes a lot programming techniques such as unparsing & parsing o
 ### Resources
 [Niotso Wiki](http://wiki.niotso.org/RefPack): Generic information on the compression used by some old EA games.
 
+[DBPF Package Information](https://modthesims.info/wiki.php?title=DBPF): Contains information on the game's .package format.
+
 [ModTheSims](https://modthesims.info/wiki.php?title=DBPF/Compression): Likely has some subtle mistakes here and there but still a good resource.
 
 [Rust Implementation by @actionninja](https://github.com/actioninja/refpack-rs): Has a lot of information on the compression algorithm.
