@@ -468,6 +468,7 @@ func compress(src []byte) ([]byte, bool) {
 	//----------
 	
 	//compress src
+	//compressed output has to smaller than the decompressed output, otherwise it's not useful
 	bufferSize := len(src) - 1
 	
 	//maximum possible size of the compressed entry due to the fact that the compressed size in the header is only 3 bytes long
