@@ -1,6 +1,6 @@
 ### Crappy Sims 2 Compression
 
-My own attempt at rewriting the compression code for The Sims 2. The non-parallel version is currently 3-4x times slower than the Compressorizer so it's not really useful.
+My own attempt at rewriting the compression code for The Sims 2. The non-parallel version is currently 3-4x times slower than the Compressorizer so it's not really useful. Not sure if it works perfectly on all package files.
 
 It attempts to compress the file as much as possible. There is no limitations imposed on it to make it run faster. The compressed output is only a few kilobytes bigger than the compressorizer.
 
