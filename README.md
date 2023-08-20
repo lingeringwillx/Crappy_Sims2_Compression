@@ -13,7 +13,7 @@ This project utilizes a lot programming techniques such as unparsing & parsing o
 
 [ModTheSims](https://modthesims.info/wiki.php?title=DBPF/Compression): Likely has some subtle mistakes here and there but still a good resource.
 
-[Rust Implementation by @actionninja](https://github.com/actioninja/refpack-rs): Has a lot of information on the compression algorithm.
+[Implementation by @actionninja](https://github.com/actioninja/refpack-rs): Has a lot of information on the compression algorithm.
 
 [Old Mystical Implementation by BenK](http://www.moreawesomethanyou.com/smf/index.php/topic,8279.0.html): Old hard to read implementation based on zlib code. This is the strongest version of the compression out there and it's the same one used by The Compressorizer.
 
