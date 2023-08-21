@@ -491,9 +491,9 @@ func compress(src []byte) ([]byte, bool) {
 			//this can only be a multiple of 4, due to the 2-bit right shift in the control character
 			plain -= plain % 4
 			
-			//max possible value is 128
-			if plain > 128 {
-				plain = 128
+			//max possible value is 112
+			if plain > 112 {
+				plain = 112
 			}
 			
 			if dstPos + plain + 1 > len(dst) {
@@ -580,8 +580,8 @@ func compress(src []byte) ([]byte, bool) {
 	for plain > 3 {
 		plain -= plain % 4
 		
-		if plain > 128 {
-			plain = 128
+		if plain > 112 {
+			plain = 112
 		}
 		
 		if dstPos + plain + 1 > len(dst) {
@@ -688,7 +688,7 @@ func decompress(src []byte) ([]byte, bool) {
 			offset = ((b0 & 0x10) << 12) + (b1 << 8) + b2 + 1 //1-131072
 			
 		} else if b0 < 0xFC {
-			plain = (b0 & 0x1F) << 2 + 4 //4-128
+			plain = (b0 & 0x1F) << 2 + 4 //4-112
 			copy = 0
 			offset = 0
 			
