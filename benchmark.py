@@ -55,33 +55,33 @@ for test in tests:
     
     test.new_size = os.path.getsize(test.file_name) / 1024
         
-    os.remove(test.file_name)
+    #os.remove(test.file_name)
     
-os.rmdir(test_directory)
+#os.rmdir(test_directory)
 
 print()
-    
+
 if old_size > 1000:
-    log('Original File Size: {:.2f} MB\n'.format(old_size / 1024))
+    size_text = '{:.2f} MB'.format(old_size / 1024)
 else:
-    log('Original File Size: {:.2f} KB\n'.format(old_size))
-    
-log('{:<21}{:<8}{:<11}Compression Ratio\n'.format('Test', 'Time', 'New Size'))
+    size_text = '{:.2f} KB'.format(old_size)
+
+log('Original File Size: {}\n'.format(size_text))
+
+log('{:<21}{:<12}{}\n'.format('Test', 'Size', 'Compression Ratio'))
 
 #decompression + levels non-parallel
-for test in tests[0:7] + tests[12:17]:
-    if test.duration > 1:
-        duration_text = '{:.2f}s '.format(test.duration)
-    else:
-        duration_text = '{:.2f}ms'.format(test.duration / 1000)
-        
+for i, test in enumerate(tests[2:7] + tests[12:17]):
     if test.new_size > 1000:
         size_text = '{:.2f} MB'.format(test.new_size / 1024)
     else:
         size_text = '{:.2f} KB'.format(test.new_size)
         
-    log('{:<21}{:<8}{:<11}{:.2f}%'.format(test.name, duration_text, size_text, test.new_size / old_size * 100))
-    
+    log('{:<21}{:<12}{:.2f}%'.format(test.name, size_text, test.new_size / old_size * 100))
+
+    if i == 4:
+        log()
+
 log('\n==================================================\n')
 
 #we only care about the speed for the rest of the tests
@@ -92,7 +92,7 @@ for i in range(2, 7):
         if test.duration > 1:
             duration_text = '{:.2f}s '.format(test.duration)
         else:
-            duration_text = '{:.2f}ms'.format(test.duration / 1000)
+            duration_text = '{:.2f}ms'.format(test.duration * 1000)
             
         log('{:<21}{}'.format(test.name, duration_text))
         

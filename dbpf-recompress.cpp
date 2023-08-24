@@ -1,6 +1,6 @@
 #include "dbpf.h"
 
-#include <execution>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -9,9 +9,26 @@
 
 using namespace std;
 
+//for debugging
+class Timer {
+	public:
+		chrono::time_point<std::chrono::steady_clock> t;
+		
+	Timer() {
+		t = chrono::high_resolution_clock::now();
+	}
+	
+	void log(string info)	{
+		//uncomment to display timers
+		int timeSpent = chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - t).count();
+		//cout << info << ": " << timeSpent << endl;
+		t = chrono::high_resolution_clock::now();
+	}
+};
+
 int main(int argc, char *argv[]) {
 	if(argc == 1) {
-		cout << "No argument provided";
+		cout << "No argument provided" << endl;
 		return 0;
 	}
 	
@@ -25,18 +42,24 @@ int main(int argc, char *argv[]) {
 		arg = argv[i];
 		
 		if(arg == "-h" || arg == "help") {
-			cout << "    -r    recompress" << endl;
-			cout << "    -p    parallel" << endl;
 			cout << "    -l    level" << endl;
-			cout << "    -d    decompress" << endl << endl;
+			cout << "    -p    parallel" << endl;
+			cout << "    -r    recompress" << endl;
+			cout << "    -d    decompress" << endl;
+			cout << endl;
 			return 0;
 		}
 		
 		else if(arg.find("-l") == 0) {
+			if(arg.size() < 3) {
+				cout << "Compression level not specified" << endl;
+				return 0;
+			}
+
 			level = (int) arg[2] - 48;
 			
 			if(level != 1 && level != 3 && level != 5 && level != 7 && level != 9) {
-				cout << "Level " << level << " is not supported";
+				cout << "Level " << level << " is not supported" << endl;
 				return 0;
 			}
 			
@@ -50,56 +73,62 @@ int main(int argc, char *argv[]) {
 			parallel = true;
 		}
 	}
-	
+
 	string fileName = argv[argc - 1];
-	
+
+	if(fileName == "dbpf-recompress" || fileName.find("-") == 0) {
+		cout << "No file path provided" << endl;
+		return 0;
+	}
+
+	try {
+		if(!filesystem::is_regular_file(fileName)) {
+			cout << "File not found" << endl;
+			return 0;
+		}
+
+	} catch(filesystem::filesystem_error) {
+		cout << "File system error" << endl;
+		return 0;
+	}
+
+	int extensionLoc = fileName.find(".package");
+	if(extensionLoc == -1 || extensionLoc != fileName.size() - 8) {
+		cout << "Not a package file" << endl;
+		return 0;
+	}
+
 	Timer timer = Timer();
 	
 	//open file
 	ifstream file = ifstream(fileName, ios::binary);
 	
 	if(!file.is_open()) {
-		cout << "Failed to open file";
+		cout << "Failed to open file" << endl;;
 		return 0;
 	}
 	
-	//get file size
-	file.seekg(0, ios::end);
-	streampos fileSize = file.tellg();
-	
-	//read file to signedContent
+	//get package
 	file.seekg(0, ios::beg);
-	vector<char> signedContent = vector<char>(fileSize);
-	file.read(&signedContent[0], fileSize);
+
+	Package package = getPackage(file);
 	
 	file.close();
-	
-	timer.log("File read");
-	
-	//convert to unsigned char, is there a faster way to do this?
-	bytes content = bytes(signedContent.size());
-	for(uint i = 0; i < signedContent.size(); i++) {
-		content[i] = (unsigned char) signedContent[i];
-	}
-	
-	timer.log("Cast to unsigned");
-	
-	//get package
-	Package package = getPackage(content);
-	
+
 	timer.log("Unpack package");
 	
 	if(parallel) {
 		//parallel compression of package
-		for_each(execution::par, package.entries.begin(), package.entries.end(), [decompress, recompress, level](auto& entry) {
+		#pragma omp parallel for
+		for(int i = 0; i < package.entries.size(); i++) {
 			if(recompress || decompress) {
-				entry.decompressEntry();
+				package.entries[i].decompressEntry();
 			}
 			
 			if(!decompress || (decompress && recompress)) {
-				entry.compressEntry(level);
+				package.entries[i].compressEntry(level);
 			}
-		});
+		}
 	}
 	
 	else {
@@ -117,29 +146,24 @@ int main(int argc, char *argv[]) {
 	timer.log("Compress");
 	
 	//convert to bytes
-	content = putPackage(package);
+	bytes content = putPackage(package);
 	
 	timer.log("Pack package");
-	
-	//convert to signed (is there a faster way to do this?)
-	signedContent = vector<char>(content.size());
-
-	for(uint i = 0; i < content.size(); i++) {
-		signedContent[i] = (signed char) content[i];
-	}
-	
-	timer.log("Cast to signed");
 	
 	//try to write to temp file
 	ofstream tempFile = ofstream(fileName + ".new", ios::binary);
 	if(tempFile.is_open()) {
-		if(!tempFile.write(&signedContent[0], signedContent.size())) {
-			cout << "Failed to write file";
+		if(!tempFile.write(reinterpret_cast<char *>(content.data()), content.size())) {
+			cout << "Failed to write to file" << endl;
+			tempFile.close();
+			return 0;
 		}
+
 		tempFile.close();
 
 	} else {
-		cout << "Failed to open file";
+		cout << "Failed to open file" << endl;
+		return 0;
 	}
 	
 	//overwrite old file
@@ -148,7 +172,7 @@ int main(int argc, char *argv[]) {
 	}
 	
 	catch(filesystem::filesystem_error) {
-		cout << "Failed to replace file";
+		cout << "Failed to replace file" << endl;
 		return 0;
 	}
 	

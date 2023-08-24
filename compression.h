@@ -1,27 +1,13 @@
 /*
- * Library interface for reading and writing DBPF package files from
- * The Sims 2. Not currently compatible with SimCity 4.
- * Version 20070601.
- *
- * This file is Copyright 2007 Ben Rudiak-Gould. Anyone may use it
- * under the terms of the GNU General Public License, version 2 or
- * (at your option) any later version. This code comes with
- * NO WARRANTY. Make backups!
- */
-
-static bool decompress(const unsigned char* src, int compressed_size, unsigned char* dst, int uncompressed_size, bool truncate);
-static int try_compress(const unsigned char* src, int srclen, unsigned char* dst, int level);
-static unsigned char* compress(const unsigned char* src, const unsigned char* srcend, unsigned char* dst, unsigned char* dstend, bool pad, int level);
-
-/*
- * Implementation of the interface documented in dbpf.h.
- * Version 20070601.
- *
  * This file (with the exception of some parts adapted from zlib) is
  * Copyright 2007 Ben Rudiak-Gould. Anyone may use it under the terms of
  * the GNU General Public License, version 2 or (at your option) any
  * later version. This code comes with NO WARRANTY. Make backups!
  */
+
+static bool decompress(const unsigned char* src, int compressed_size, unsigned char* dst, int uncompressed_size, bool truncate);
+static int try_compress(const unsigned char* src, int srclen, unsigned char* dst, int level);
+static unsigned char* compress(const unsigned char* src, const unsigned char* srcend, unsigned char* dst, unsigned char* dstend, bool pad, int level);
 
 #include <string.h>  // for memcpy and memset
 #include <stdlib.h>

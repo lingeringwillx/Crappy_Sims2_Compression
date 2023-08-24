@@ -1,10 +1,10 @@
 #include "compression.h"
 
-#include <chrono>
-#include <map>
+#include <fstream>
 #include <iostream>
+#include <map>
 #include <set>
-#include <string>
+//#include <string>
 #include <vector>
 
 using namespace std;
@@ -12,21 +12,12 @@ using namespace std;
 typedef unsigned int uint;
 typedef vector<unsigned char> bytes;
 
-//for debugging
-class Timer {
-	public:
-		chrono::time_point<std::chrono::steady_clock> t;
-		
-	Timer() {
-		t = chrono::high_resolution_clock::now();
-	}
-	
-	void log(string info)	{
-		//uncomment to display timers
-		//cout << info << ": " << chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - t).count() << endl;
-		t = chrono::high_resolution_clock::now();
-	}
-};
+bytes read(ifstream& file, uint pos, uint size) {
+	bytes buf = bytes(size);
+	file.seekg(pos, ios::beg);
+	file.read(reinterpret_cast<char *>(buf.data()), size);
+	return buf;
+}
 
 //convert 4 bytes from buf at pos to integer and increment pos (little endian)
 uint getInt32le(bytes& buf, uint& pos) {
@@ -128,8 +119,7 @@ struct CompressedEntry {
 };
 
 //for use by sets and maps
-//C++ sets and maps use binary search to find elements faster, we use that for collecting information about the entries
-//it would however be faster to use an implementaion of a hashtable, but we currently stick with this because it's easier to implement
+//C++ sets and maps use binary search to find elements faster, we utilize that for entry lookups
 bool operator< (CompressedEntry entry, CompressedEntry entry2) {
 	if(entry.type != entry2.type) {
 		return entry.type < entry2.type;
@@ -163,12 +153,16 @@ class Package {
 };
 
 //get package from buffer
-Package getPackage(bytes& buffer) {
+Package getPackage(ifstream& file) {
 	//header
+	bytes buffer = read(file, 0, 64);
+
 	uint pos = 36;
 	uint indexEntryCount = getInt32le(buffer, pos);
 	uint indexLocation = getInt32le(buffer, pos);
-	pos += 16;
+	uint indexSize = getInt32le(buffer, pos);
+
+	pos += 12;
 	uint indexVersion = getInt32le(buffer, pos);
 
 	vector<Entry> entries;
@@ -178,7 +172,8 @@ Package getPackage(bytes& buffer) {
 	bytes clstContent;
 
 	//index & entries
-	pos = indexLocation;
+	buffer = read(file, indexLocation, indexSize);
+	pos = 0;
 
 	for(uint i = 0; i < indexEntryCount; i++) {
 		uint type = getInt32le(buffer, pos);
@@ -195,10 +190,10 @@ Package getPackage(bytes& buffer) {
 		
 
 		if(type == 0xE86B1EEF) {
-			clstContent = bytes(buffer.begin() + location, buffer.begin() + location + size);
+			clstContent = read(file, location, size);
 			hasClst = true;
 		} else {
-			bytes content = bytes(buffer.begin() + location, buffer.begin() + location + size);
+			bytes content = read(file, location, size);
 			Entry entry = Entry(content, type, group, instance, resource);
 			entries.push_back(entry);
 		}
