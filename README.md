@@ -4,8 +4,6 @@
 
 <br/>Current build can be compiled with Visual C++ Build Tools. Run `compile.bat` to compile.
 
-Currently not memory efficient.
-
 Usage: `dbpf-recompress -args package_file`
 
 Benchmark: `python benchmark.py package_file`
