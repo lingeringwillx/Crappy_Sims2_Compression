@@ -8,13 +8,23 @@ Usage: `dbpf-recompress -args package_file`
 
 Benchmark: `python benchmark.py package_file`
 
+There is now an experimental release that could be used as a drop-in replacement for The Compressorizer's original executable. It achieves faster compression in the following ways:
+
+1- It doesn't compress the parts of the file that were already compressed before.
+
+1- Utilizing all of the cores of your PC for compression, so if you have a dual core CPU then compression will be roughly 2x faster, and if you have a quad core CPU then it will be 4x faster, etc.
+
+3- By making the compression a little weaker.
+
+To use it, just download the .exe file and put it in the same directory as The Compressorizer, overwriting the old file.
+
 #### Parameters
 
 | Flag | Behavior | Description
 | - | - | - |
 | `-l` | Compression Level | Can be `-l1`, `-l3`, `-l5`, `-l7`, or `-l9`. Higher values mean stronger but slower compression |
 | `-r` | Recompress | Decompress the file then compress it again, can provide a bigger compression if the older compression is weak, but will slow down the compression |
-| `-p` | Parallel | Use all cores for compresson, will speed up the compression but will use 100% of CPU during compression |
+| `-p` | Parallel | Use all cores for compresson, will speed up the compression but will use 100% of CPU during compression (Note: This is always enabled in the release version) |
 | `-d` | Decompress | Decompress without compression, if flag `-r` is also set then the file will also be compressed again |
 
 ### Resources
