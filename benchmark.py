@@ -69,7 +69,7 @@ else:
 log('{:<21}{:<8}{:<11}Compression Ratio\n'.format('Test', 'Time', 'New Size'))
 
 #decompression + levels non-parallel
-for test in tests[0:7]:
+for test in tests[0:7] + tests[12:17]:
     if test.duration > 1:
         duration_text = '{:.2f}s '.format(test.duration)
     else:
