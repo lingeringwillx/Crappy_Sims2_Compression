@@ -6,7 +6,7 @@
 
 Currently not memory efficient.
 
-Use: `dbpf-recompress -args package_file`
+Usage: `dbpf-recompress -args package_file`
 
 Benchmark: `python benchmark.py package_file`
 
