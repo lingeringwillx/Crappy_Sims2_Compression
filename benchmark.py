@@ -55,9 +55,9 @@ for test in tests:
     
     test.new_size = os.path.getsize(test.file_name) / 1024
         
-    #os.remove(test.file_name)
+    os.remove(test.file_name)
     
-#os.rmdir(test_directory)
+os.rmdir(test_directory)
 
 print()
     

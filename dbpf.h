@@ -274,16 +274,18 @@ bytes putPackage(Package& package) {
 		Entry clst = Entry(clstContent, 0xE86B1EEF, 0xE86B1EEF, 0x286B1F03, 0);
 
 		for(auto& entry: package.entries) {
-			putInt32le(clst.content, pos, entry.type);
-			putInt32le(clst.content, pos, entry.group);
-			putInt32le(clst.content, pos, entry.instance);
+			if(entry.compressed) {
+				putInt32le(clst.content, pos, entry.type);
+				putInt32le(clst.content, pos, entry.group);
+				putInt32le(clst.content, pos, entry.instance);
 
-			if(package.indexVersion == 2) {
-				putInt32le(clst.content, pos, entry.resource);
+				if(package.indexVersion == 2) {
+					putInt32le(clst.content, pos, entry.resource);
+				}
+
+				uint tempPos = 6;
+				putInt32le(clst.content, pos, getInt24bg(entry.content, tempPos)); //uncompressed size
 			}
-
-			uint tempPos = 6;
-			putInt32le(clst.content, pos, getInt24bg(entry.content, tempPos)); //uncompressed size
 		}
 
 		package.entries.push_back(clst);
