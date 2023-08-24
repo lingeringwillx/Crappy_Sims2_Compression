@@ -16,7 +16,7 @@ Benchmark: `python benchmark.py package_file`
 | - | - | - |
 | `-l` | Compression Level | Can be `-l1`, `-l3`, `-l5`, `-l7`, or `-l9`. Higher values mean stronger but slower compression |
 | `-r` | Recompress | Decompress the file then compress it again, can provide a bigger compression if the older compression is weak, but will slow down the compression |
-| `-p` | Parallel | Use all cores for compresson, will speed up compression but will use 100% of CPU during compression |
+| `-p` | Parallel | Use all cores for compresson, will speed up the compression but will use 100% of CPU during compression |
 | `-d` | Decompress | Decompress without compression, if flag `-r` is also set then the file will also be compressed again |
 
 ### Resources
