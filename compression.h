@@ -329,7 +329,10 @@ static inline unsigned longest_match(
     unsigned const pos,
     unsigned const remaining,
     unsigned const prev_length,
-    unsigned* pmatch_start, int GOOD_LENGTH, int NICE_LENGTH, int MAX_CHAIN)
+    unsigned* pmatch_start,
+    int GOOD_LENGTH,
+    int NICE_LENGTH,
+    int MAX_CHAIN)
 {
     unsigned chain_length = MAX_CHAIN;         /* max hash chain length */
     int best_len = prev_length;                /* best match length so far */
