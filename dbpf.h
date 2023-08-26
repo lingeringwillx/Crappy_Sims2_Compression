@@ -119,7 +119,6 @@ struct CompressedEntry {
 };
 
 //for use by sets and maps
-//C++ sets and maps use binary search to find elements faster, we utilize that for entry lookups
 bool operator< (CompressedEntry entry, CompressedEntry entry2) {
 	if(entry.type != entry2.type) {
 		return entry.type < entry2.type;
