@@ -1,3 +1,6 @@
+#ifndef DBPF_H
+#define DBPF_H
+
 #include "compression.h"
 
 #include <fstream>
@@ -404,3 +407,5 @@ bytes putPackage(Package& package) {
 
 	return buffer;
 }
+
+#endif

@@ -42,10 +42,10 @@ int main(int argc, char *argv[]) {
 		arg = argv[i];
 		
 		if(arg == "-h" || arg == "help") {
-			cout << "    -l    level" << endl;
-			cout << "    -p    parallel" << endl;
-			cout << "    -r    recompress" << endl;
-			cout << "    -d    decompress" << endl;
+			cout << "  -l  level" << endl;
+			cout << "  -p  parallel" << endl;
+			cout << "  -r  recompress" << endl;
+			cout << "  -d  decompress" << endl;
 			cout << endl;
 			return 0;
 		}
@@ -177,7 +177,15 @@ int main(int argc, char *argv[]) {
 	}
 	
 	catch(filesystem::filesystem_error) {
-		cout << "Failed to replace file" << endl;
+		cout << "Failed to overwrite old file" << endl;
+		
+		try {
+			filesystem::remove(fileName + ".new");
+			
+		} catch(filesystem::filesystem_error) {
+			cout << "Failed to remove temporary file" << endl;
+		}
+		
 		return 0;
 	}
 	

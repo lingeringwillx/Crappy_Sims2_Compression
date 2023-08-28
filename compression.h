@@ -5,6 +5,9 @@
  * later version. This code comes with NO WARRANTY. Make backups!
  */
 
+#ifndef COMPRESSION_H
+#define COMPRESSION_H
+
 static bool decompress(const unsigned char* src, int compressed_size, unsigned char* dst, int uncompressed_size, bool truncate);
 static int try_compress(const unsigned char* src, int srclen, unsigned char* dst, int level);
 static unsigned char* compress(const unsigned char* src, const unsigned char* srcend, unsigned char* dst, unsigned char* dstend, bool pad, int level);
@@ -511,3 +514,5 @@ static unsigned char* compress(const unsigned char* src, const unsigned char* sr
 
     return dstsize;
 }
+
+#endif
