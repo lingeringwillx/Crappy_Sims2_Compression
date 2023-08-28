@@ -114,6 +114,11 @@ int main(int argc, char *argv[]) {
 	Package package = getPackage(file);
 	
 	file.close();
+	
+	//error unpacking package
+	if(package.indexVersion == -1) {
+		return 0;
+	}
 
 	timer.log("Unpack package");
 	

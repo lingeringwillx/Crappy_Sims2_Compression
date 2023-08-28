@@ -19,6 +19,14 @@ bytes read(ifstream& file, uint pos, uint size) {
 	return buf;
 }
 
+uint getSize(ifstream& file) {
+	uint pos = file.tellg();
+	file.seekg(0, ios_base::end);
+	uint size = file.tellg();
+	file.seekg(pos, ios_base::beg);
+	return size;
+}
+
 //convert 4 bytes from buf at pos to integer and increment pos (little endian)
 uint getInt32le(bytes& buf, uint& pos) {
 	uint n = buf[pos];
@@ -153,11 +161,18 @@ class Package {
 
 //get package from buffer
 Package getPackage(ifstream& file) {
+	uint fileSize = getSize(file);
+	
+	if(fileSize < 64) {
+		cout << "File header not found" << endl;
+		return Package(-1, vector<Entry>());
+	}
+	
 	//header
 	bytes buffer = read(file, 0, 64);
 
 	uint pos = 36;
-	uint indexEntryCount = getInt32le(buffer, pos);
+	uint entryCount = getInt32le(buffer, pos);
 	uint indexLocation = getInt32le(buffer, pos);
 	uint indexSize = getInt32le(buffer, pos);
 
@@ -165,16 +180,38 @@ Package getPackage(ifstream& file) {
 	uint indexVersion = getInt32le(buffer, pos);
 
 	vector<Entry> entries;
-	entries.reserve(indexEntryCount);
+	entries.reserve(entryCount);
 
 	bool hasClst = false;
 	bytes clstContent;
-
+	
+	if(indexVersion > 2) {
+		cout << "Unrecognized index version" << endl;
+		return Package(-1, vector<Entry>());
+	}
+	
+	if(indexLocation > fileSize || indexLocation + indexSize > fileSize) {
+		cout << "File index outside of bounds" << endl;
+		return Package(-1, vector<Entry>());
+	}
+	
+	uint entryCountToIndexSize = 0;
+	if(indexVersion == 2) {
+		entryCountToIndexSize = entryCount * 4 * 6;
+	} else {
+		entryCountToIndexSize = entryCount * 4 * 5;
+	}
+	
+	if(entryCountToIndexSize > indexSize) {
+		cout << "Entry count larger than index" << endl;
+		return Package(-1, vector<Entry>());
+	}
+	
 	//index & entries
 	buffer = read(file, indexLocation, indexSize);
 	pos = 0;
 
-	for(uint i = 0; i < indexEntryCount; i++) {
+	for(uint i = 0; i < entryCount; i++) {
 		uint type = getInt32le(buffer, pos);
 		uint group = getInt32le(buffer, pos);
 		uint instance = getInt32le(buffer, pos);
@@ -187,7 +224,11 @@ Package getPackage(ifstream& file) {
 		uint location = getInt32le(buffer, pos);
 		uint size = getInt32le(buffer, pos);
 		
-
+		if(location > fileSize || location + size > fileSize) {
+			cout << "Entry location outside of bounds" << endl;
+			return Package(-1, vector<Entry>()); 
+		}
+		
 		if(type == 0xE86B1EEF) {
 			clstContent = read(file, location, size);
 			hasClst = true;
