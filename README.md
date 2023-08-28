@@ -22,7 +22,7 @@ Alternatively, you can just drag and drop your file or folder to the executable 
 
 #### Parameters
 
-| Flag | Behavior | Description
+| Flag | Name | Description
 | - | - | - |
 | `-l` | Compression Level | Can be `-l1`, `-l3`, `-l5`, `-l7`, or `-l9`. Higher values mean stronger but slower compression |
 | `-r` | Recompress | Decompress the file then compress it again, can provide a bigger compression if the older compression is weak, but will slow down the compression |
