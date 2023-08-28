@@ -22,6 +22,10 @@ bytes read(ifstream& file, uint pos, uint size) {
 	return buf;
 }
 
+void write(ofstream& file, bytes& buf) {
+	file.write(reinterpret_cast<char *>(buf.data()), buf.size());
+}
+
 uint getSize(ifstream& file) {
 	uint pos = file.tellg();
 	file.seekg(0, ios_base::end);
@@ -289,7 +293,7 @@ Package getPackage(ifstream& file, string displayPath) {
 }
 
 //put package in buffer
-bytes putPackage(Package& package) {
+void putPackage(ofstream& file, Package& package) {
 	//if it has compressed entries then create a new directory of compressed files
 	bool hasCompressedEntries = false;
 	for(auto& entry: package.entries) {
@@ -329,24 +333,9 @@ bytes putPackage(Package& package) {
 		package.entries.push_back(clst);
 	}
 
-	//calculate file length
-	uint fileLength = 96; //header size
-
-	//entries size
-	for(auto& entry: package.entries) {
-		fileLength += entry.content.size();
-	}
-
-	//index size
-	if(package.indexVersion == 2) {
-		fileLength += package.entries.size() * 4 * 6;
-	} else {
-		fileLength += package.entries.size() * 4 * 5;
-	}
-
 	//write header
-	bytes buffer = bytes(fileLength);
-	
+	uint bufferSize = 96;
+	bytes buffer = bytes(bufferSize);
 	uint pos = 0;
 
 	buffer[0] = 'D';
@@ -372,18 +361,26 @@ bytes putPackage(Package& package) {
 	putInt32le(buffer, pos, 0);
 	putInt32le(buffer, pos, package.indexVersion);
 
-	pos += 32;
+	write(file, buffer);
 
 	//write entries, and save the location for the index
 	for(auto& entry: package.entries) {
-		entry.location = pos;
-		copy(entry.content.begin(), entry.content.end(), buffer.begin() + pos);
-		pos += entry.content.size();
+		entry.location = file.tellp();
+		write(file, entry.content);
 	}
 
 	//write the index
-	uint indexStart = pos;
+	uint indexStart = file.tellp();
 
+	if(package.indexVersion == 2) {
+		bufferSize = package.entries.size() * 4 * 6;
+	} else {
+		bufferSize = package.entries.size() * 4 * 5;
+	}
+	
+	buffer = bytes(bufferSize);
+	pos = 0;
+	
 	for(auto& entry: package.entries) {
 		putInt32le(buffer, pos, entry.type);
 		putInt32le(buffer, pos, entry.group);
@@ -396,16 +393,21 @@ bytes putPackage(Package& package) {
 		putInt32le(buffer, pos, entry.location);
 		putInt32le(buffer, pos, entry.content.size());
 	}
-
-	uint indexEnd = pos;
+	
+	write(file, buffer);
+	uint indexEnd = file.tellp();
 
 	//update the header with index info
-	pos = 36;
+	file.seekp(36);
+	
+	buffer = bytes(12);
+	pos = 0;
+	
 	putInt32le(buffer, pos, package.entries.size()); //index entry count
 	putInt32le(buffer, pos, indexStart); //index location
 	putInt32le(buffer, pos, indexEnd - indexStart); //index size
 
-	return buffer;
+	write(file, buffer);
 }
 
 #endif

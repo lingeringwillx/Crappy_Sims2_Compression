@@ -89,42 +89,36 @@ int main(int argc, char *argv[]) {
 	
 	vector<filesystem::directory_entry> files = vector<filesystem::directory_entry>();
 	
-	try {
-		if(filesystem::is_regular_file(pathName)) {
-			int extensionLoc = pathName.find(".package");
-			if(extensionLoc == -1 || extensionLoc != pathName.size() - 8) {
-				cout << "Not a package file" << endl;
-				return 0;
-			}
-			
-			files.push_back(filesystem::directory_entry(pathName));
-			
-		} else if(filesystem::is_directory(pathName)) {
-			
-			for(auto& dir_entry: filesystem::recursive_directory_iterator(pathName)) {
-				if(dir_entry.is_regular_file() && dir_entry.path().extension() == ".package") {
-					files.push_back(dir_entry);
-				}
-			}
-			
-		} else {
-			cout << "File not found" << endl;
+	if(filesystem::is_regular_file(pathName)) {
+		int extensionLoc = pathName.find(".package");
+		if(extensionLoc == -1 || extensionLoc != pathName.size() - 8) {
+			cout << "Not a package file" << endl;
 			return 0;
 		}
 		
-	} catch(filesystem::filesystem_error) {
-		cout << "File system error" << endl;
+		files.push_back(filesystem::directory_entry(pathName));
+		
+	} else if(filesystem::is_directory(pathName)) {
+		
+		for(auto& dir_entry: filesystem::recursive_directory_iterator(pathName)) {
+			if(dir_entry.is_regular_file() && dir_entry.path().extension() == ".package") {
+				files.push_back(dir_entry);
+			}
+		}
+		
+	} else {
+		cout << "File not found" << endl;
 		return 0;
 	}
-
+	
 	Timer timer = Timer();
 	
 	for(auto& dir_entry: files) {
 		//open file
 		string fileName = dir_entry.path().string();
 		float current_size = dir_entry.file_size() / 1024;
-		string displayPath; //for cout
 		
+		string displayPath; //for cout
 		if(filesystem::is_regular_file(pathName)) {
 			displayPath = fileName;
 		} else {
@@ -180,28 +174,12 @@ int main(int argc, char *argv[]) {
 		
 		timer.log("Compress");
 		
-		//convert to bytes
-		bytes content = putPackage(package);
-		
-		timer.log("Pack package");
-		
-		//try to write to temp file
+		//pack package and write to temp file
 		ofstream tempFile = ofstream(fileName + ".new", ios::binary);
 		if(tempFile.is_open()) {
-			if(!tempFile.write(reinterpret_cast<char *>(content.data()), content.size())) {
-				cout << displayPath << ": Failed to write to file" << endl;
-				tempFile.close();
-				
-				try {
-					filesystem::remove(fileName + ".new");
-					
-				} catch(filesystem::filesystem_error) {}
-				
-				continue;
-			}
-
+			putPackage(tempFile, package);
 			tempFile.close();
-
+			
 		} else {
 			cout << displayPath << ": Failed to create temp file" << endl;
 			continue;
@@ -223,7 +201,7 @@ int main(int argc, char *argv[]) {
 			continue;
 		}
 		
-		timer.log("Write file");
+		timer.log("Pack Package");
 		
 		float new_size = filesystem::file_size(fileName) / 1024;
 		
@@ -249,8 +227,6 @@ int main(int argc, char *argv[]) {
 	}
 	
 	if(!quiet) {
-		cout << endl;
-		system("pause");
 		cout << endl;
 	}
 	
