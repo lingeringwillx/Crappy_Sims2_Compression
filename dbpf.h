@@ -163,11 +163,11 @@ class Package {
 };
 
 //get package from buffer
-Package getPackage(ifstream& file) {
+Package getPackage(ifstream& file, string displayPath) {
 	uint fileSize = getSize(file);
 	
 	if(fileSize < 64) {
-		cout << "File header not found" << endl;
+		cout << displayPath << ": Header not found" << endl;
 		return Package(-1, vector<Entry>());
 	}
 	
@@ -189,12 +189,12 @@ Package getPackage(ifstream& file) {
 	bytes clstContent;
 	
 	if(indexVersion > 2) {
-		cout << "Unrecognized index version" << endl;
+		cout << displayPath << ": Unrecognized index version" << endl;
 		return Package(-1, vector<Entry>());
 	}
 	
 	if(indexLocation > fileSize || indexLocation + indexSize > fileSize) {
-		cout << "File index outside of bounds" << endl;
+		cout << displayPath << ": File index outside of bounds for " << displayPath << endl;
 		return Package(-1, vector<Entry>());
 	}
 	
@@ -206,7 +206,7 @@ Package getPackage(ifstream& file) {
 	}
 	
 	if(entryCountToIndexSize > indexSize) {
-		cout << "Entry count larger than index" << endl;
+		cout << displayPath << ": Entry count larger than index" << endl;
 		return Package(-1, vector<Entry>());
 	}
 	
@@ -228,7 +228,7 @@ Package getPackage(ifstream& file) {
 		uint size = getInt32le(buffer, pos);
 		
 		if(location > fileSize || location + size > fileSize) {
-			cout << "Entry location outside of bounds" << endl;
+			cout << displayPath << ": Entry location outside of bounds" << endl;
 			return Package(-1, vector<Entry>()); 
 		}
 		

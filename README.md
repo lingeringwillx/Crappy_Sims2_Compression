@@ -18,6 +18,8 @@ There is now an experimental release that could be used as a drop-in replacement
 
 To use it, just download the .exe file and put it in the same directory as The Compressorizer, overwriting the old file.
 
+Alternatively, you can just drag and drop your file or folder to the executable and it will be compressed.
+
 #### Parameters
 
 | Flag | Behavior | Description
@@ -26,6 +28,7 @@ To use it, just download the .exe file and put it in the same directory as The C
 | `-r` | Recompress | Decompress the file then compress it again, can provide a bigger compression if the older compression is weak, but will slow down the compression |
 | `-p` | Parallel | Use all cores for compresson, will speed up the compression but will use 100% of CPU during compression (Note: This is always enabled in the release version) |
 | `-d` | Decompress | Decompress without compression, if flag `-r` is also set then the file will also be compressed again |
+| `-q` | Quiet | Don't output anything to the console except for errors (Note: This is always enabled in the release version) |
 
 ### Resources
 [Niotso Wiki](http://wiki.niotso.org/RefPack): Generic information on the compression used by some old EA games.

@@ -19,6 +19,7 @@ class Test:
     def __init__(self, name, args, file_name):
         self.name = name
         self.args = args
+        self.args.append("-q")
         self.file_name = os.path.join(test_directory, file_name) + '.package'
         self.new_size = 0
         self.duration = 0
