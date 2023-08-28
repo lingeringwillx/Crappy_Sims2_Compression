@@ -4,17 +4,6 @@ import subprocess
 import time
 import sys
 
-test_directory = 'benchmark'
-log_file = 'benchmark.txt'
-
-if os.path.isfile(log_file):
-    os.remove(log_file)
-
-def log(text=''):
-    print(text)
-    with open(log_file, 'a') as fs:
-        fs.write(text + '\n')
-        
 class Test:
     def __init__(self, name, args, file_name):
         self.name = name
@@ -24,6 +13,23 @@ class Test:
         self.new_size = 0
         self.duration = 0
         
+def log(text=''):
+    print(text)
+    with open(log_file, 'a') as fs:
+        fs.write(text + '\n')
+        
+def get_size_text(size):
+    if size > 1000:
+        return '{:.2f} MB'.format(size / 1024)
+    else:
+        return '{:.2f} KB'.format(size)
+        
+test_directory = 'benchmark'
+log_file = 'benchmark.txt'
+
+if os.path.isfile(log_file):
+    os.remove(log_file)
+    
 file = sys.argv[1]
 old_size = os.path.getsize(file) / 1024 #KB
 
@@ -62,23 +68,14 @@ os.rmdir(test_directory)
 
 print()
 
-if old_size > 1000:
-    size_text = '{:.2f} MB'.format(old_size / 1024)
-else:
-    size_text = '{:.2f} KB'.format(old_size)
-
-log('Original File Size: {}\n'.format(size_text))
+log('File Size: {}'.format(get_size_text(old_size)))
+log('Uncompressed Size: {}\n'.format(get_size_text(tests[0].new_size)))
 
 log('{:<21}{:<12}{}\n'.format('Test', 'Size', 'Compression Ratio'))
 
 #decompression + levels non-parallel
 for i, test in enumerate(tests[2:7] + tests[12:17]):
-    if test.new_size > 1000:
-        size_text = '{:.2f} MB'.format(test.new_size / 1024)
-    else:
-        size_text = '{:.2f} KB'.format(test.new_size)
-        
-    log('{:<21}{:<12}{:.2f}%'.format(test.name, size_text, test.new_size / old_size * 100))
+    log('{:<21}{:<12}{:.2f}%'.format(test.name, get_size_text(test.new_size), test.new_size / old_size * 100))
 
     if i == 4:
         log()
