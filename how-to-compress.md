@@ -22,6 +22,12 @@ Note: The copying in step 6 has to be done one byte at a time, otherwise you wil
 
 **count** = The number of bytes to copy from the offset in the *decompressed* data
 
+Typical structure of decompressed data:
+
+When there is an offset copy: `literals_from_compressed_data  bytes_from_offset  literals_from_compressed_data  bytes_from_offset...`
+
+When copying plainly: `literals_from_compressed_data  literals_from_compressed_data ...`
+
 #### Control Characters:
 
 #### Short (0x00 - 0x7F)
@@ -104,6 +110,8 @@ Note: Start at byte 9 to leave room for the compression header.
 6- Write the compression header to the first 9 bytes of the compressed data.
 
 7- Slice the array to the size that you've got after compression.
+
+Typical structure of compressed data: `control_characters literals_from_decompressed_data  control_characters  literals_from_decompressed_data...`
 
 #### Control Characters
 
