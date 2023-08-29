@@ -53,7 +53,7 @@ Has three control characters.
 
 plain = ((b1 & 0xC0) >> 6 //0-3 (mask off & shift right b1)
 count = (b0 & 0x3F) + 4 //4-67 (mask off b1 + 4)
-offset: ((b1 & 0x3F) << 8) + b2 + 1 //1-16384 ((mask off & shift left b1) + b2 + 1)
+offset = ((b1 & 0x3F) << 8) + b2 + 1 //1-16384 ((mask off & shift left b1) + b2 + 1)
 ```
 
 #### Long (0xC0 - 0xDF)
