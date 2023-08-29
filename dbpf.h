@@ -2,6 +2,7 @@
 #define DBPF_H
 
 #include "compression.h"
+#include "omp.h"
 
 #include <fstream>
 #include <iostream>
@@ -87,51 +88,58 @@ void putInt24bg(bytes& buf, uint& pos, uint n) {
 //representing one entry (file) inside the package
 class Entry {
 	public:
-		bytes content;
 		uint type;
 		uint group;
 		uint instance;
 		uint resource;
 		uint location;
-		uint compressed;
-		uint repeated;
+		uint size;
+		uint uncompressedSize = 0;
+		bool listedInDir = false; //found in the directory of compressed files
+		bool hasCompressionHeader = false; //has bytes 0x10FB in the header
+		bool repeated = false; //appears twice in same package
 		
-	Entry(bytes& buf, uint typeId, uint groupId, uint instanceId, uint resourceId) {
-		content = buf;
+	Entry(uint typeId, uint groupId, uint instanceId, uint resourceId, uint loc, uint len) {
 		type = typeId;
 		group = groupId;
 		instance = instanceId;
 		resource = resourceId;
-		location = 0;
-		compressed = false;
-		repeated = false;
+		location = loc;
+		size = len;
 	}
 
-	void compressEntry(int level) {
-		if(!compressed && !repeated) {
+	bytes compressEntry(bytes& content, int level) {
+		if((!listedInDir || !hasCompressionHeader) && !repeated) {
 			bytes newContent = bytes((content.size() - 1)); //must be smaller than the original, otherwise there is no benefit
 			int length = try_compress(&content[0], content.size(), &newContent[0], level);
 			
 			if(length > 0) {
-				content = bytes(newContent.begin(), newContent.begin() + length);
-				compressed = true;
+				listedInDir = true;
+				hasCompressionHeader = true;
+				return bytes(newContent.begin(), newContent.begin() + length);
 			}
 		}
+		
+		return content;
 	}
 
-	void decompressEntry() {
-		if(compressed) {
+	bytes decompressEntry(bytes& content) {
+		if(listedInDir && hasCompressionHeader) {
 			uint tempPos = 6;
 			bytes newContent = bytes((getInt24bg(content, tempPos))); //uncompressed
 			bool success = decompress(&content[0], content.size(), &newContent[0], newContent.size(), false);
 			
 			if(success) {
-				content = newContent;
-				compressed = false;
+				listedInDir = false;
+				hasCompressionHeader = false;
+				return newContent;
+				
 			} else {
 				cout << "Failed to decompress entry" << endl;
 			}
 		}
+		
+		return content;
 	}
 };
 
@@ -176,7 +184,7 @@ class Package {
 	}
 };
 
-//get package from buffer
+//get package infromation from file
 Package getPackage(ifstream& file, string displayPath) {
 	uint fileSize = getSize(file);
 	
@@ -202,6 +210,7 @@ Package getPackage(ifstream& file, string displayPath) {
 	bool hasClst = false;
 	bytes clstContent;
 	
+	//error checking
 	if(indexVersion > 2) {
 		log_error(displayPath + ": Unrecognized index version");
 		return Package(-1, vector<Entry>());
@@ -224,7 +233,7 @@ Package getPackage(ifstream& file, string displayPath) {
 		return Package(-1, vector<Entry>());
 	}
 	
-	//index & entries
+	//index
 	buffer = read(file, indexLocation, indexSize);
 	pos = 0;
 
@@ -250,8 +259,7 @@ Package getPackage(ifstream& file, string displayPath) {
 			clstContent = read(file, location, size);
 			hasClst = true;
 		} else {
-			bytes content = read(file, location, size);
-			Entry entry = Entry(content, type, group, instance, resource);
+			Entry entry = Entry(type, group, instance, resource, location, size);
 			entries.push_back(entry);
 		}
 	}
@@ -274,13 +282,11 @@ Package getPackage(ifstream& file, string displayPath) {
 			CompressedEntries.insert(CompressedEntry{type, group, instance, resource});
 			pos += 4;
 		}
-
+		
 		//check if entries are compressed
 		for(auto& entry: entries) {
 			if(CompressedEntries.find(CompressedEntry{entry.type, entry.group, entry.instance, entry.resource}) != CompressedEntries.end()) {
-				if(entry.content[4] == 0x10 && entry.content[5] == 0xfb) {
-					entry.compressed = true;
-				}
+				entry.listedInDir = true;
 			}
 		}
 	}
@@ -302,47 +308,8 @@ Package getPackage(ifstream& file, string displayPath) {
 	return Package(indexVersion, entries);
 }
 
-//put package in buffer
-void putPackage(ofstream& file, Package& package) {
-	//if it has compressed entries then create a new directory of compressed files
-	bool hasCompressedEntries = false;
-	for(auto& entry: package.entries) {
-		if(entry.compressed) {
-			hasCompressedEntries = true;
-			break;
-		}
-	}
-
-	if(hasCompressedEntries) {
-		bytes clstContent;
-		uint pos = 0;
-
-		if(package.indexVersion == 2) {
-			clstContent = bytes(package.entries.size() * 4 * 5);
-		} else {
-			clstContent = bytes(package.entries.size() * 4 * 4);
-		}
-		
-		Entry clst = Entry(clstContent, 0xE86B1EEF, 0xE86B1EEF, 0x286B1F03, 0);
-
-		for(auto& entry: package.entries) {
-			if(entry.compressed) {
-				putInt32le(clst.content, pos, entry.type);
-				putInt32le(clst.content, pos, entry.group);
-				putInt32le(clst.content, pos, entry.instance);
-
-				if(package.indexVersion == 2) {
-					putInt32le(clst.content, pos, entry.resource);
-				}
-
-				uint tempPos = 6;
-				putInt32le(clst.content, pos, getInt24bg(entry.content, tempPos)); //uncompressed size
-			}
-		}
-
-		package.entries.push_back(clst);
-	}
-
+//put package in file
+void putPackage(ofstream& newFile, ifstream& oldFile, Package& package, bool parallel, bool decompress, bool recompress, uint level) {
 	//write header
 	uint bufferSize = 96;
 	bytes buffer = bytes(bufferSize);
@@ -371,16 +338,106 @@ void putPackage(ofstream& file, Package& package) {
 	putInt32le(buffer, pos, 0);
 	putInt32le(buffer, pos, package.indexVersion);
 
-	write(file, buffer);
+	write(newFile, buffer);
 
-	//write entries, and save the location for the index
+	//compress and write entries, and save the location and size for the index
+	
+	if(parallel) {
+		omp_lock_t lock;
+		omp_init_lock(&lock);
+		#pragma omp parallel for
+		for(int i = 0; i < package.entries.size(); i++) {
+			omp_set_lock(&lock);
+			bytes content = read(oldFile, package.entries[i].location, package.entries[i].size);
+			omp_unset_lock(&lock);
+			
+			package.entries[i].hasCompressionHeader = content[4] == 0x10 && content[5] == 0xFB;
+			
+			if(recompress || decompress) {
+				content = package.entries[i].decompressEntry(content);
+			}
+			
+			if(!decompress || (decompress && recompress)) {
+				content = package.entries[i].compressEntry(content, level);
+			}
+			
+			uint tempPos = 6;
+			package.entries[i].size = content.size();
+			
+			//we only care about the uncompressed size if the file is compressed
+			if(package.entries[i].listedInDir && package.entries[i].hasCompressionHeader) {
+				package.entries[i].uncompressedSize = getInt24bg(content, tempPos);
+			}
+			
+			omp_set_lock(&lock);
+			
+			package.entries[i].location = newFile.tellp();
+			write(newFile, content);
+			
+			omp_unset_lock(&lock);
+		}
+		
+		omp_destroy_lock(&lock);
+		
+	} else {
+		for(int i = 0; i < package.entries.size(); i++) {
+			buffer = read(oldFile, package.entries[i].location, package.entries[i].size);
+			package.entries[i].hasCompressionHeader = buffer[4] == 0x10 && buffer[5] == 0xFB;
+			
+			if(recompress || decompress) {
+				buffer = package.entries[i].decompressEntry(buffer);
+			}
+			
+			if(!decompress || (decompress && recompress)) {
+				buffer = package.entries[i].compressEntry(buffer, level);
+			}
+			
+			uint tempPos = 6;
+			package.entries[i].uncompressedSize = getInt24bg(buffer, tempPos);
+			package.entries[i].location = newFile.tellp();
+			package.entries[i].size = buffer.size();
+			write(newFile, buffer);
+		}
+	}
+	
+	//make and write the directory of compressed files
+	bytes clstContent;
+	pos = 0;
+
+	clstContent = bytes();
+	if(package.indexVersion == 2) {
+		clstContent = bytes(package.entries.size() * 4 * 5);
+	} else {
+		clstContent = bytes(package.entries.size() * 4 * 4);
+	}
+	
+	Entry clst = Entry(0xE86B1EEF, 0xE86B1EEF, 0x286B1F03, 0, newFile.tellp(), 0);
+
 	for(auto& entry: package.entries) {
-		entry.location = file.tellp();
-		write(file, entry.content);
+		if(entry.listedInDir && entry.hasCompressionHeader) {
+			putInt32le(clstContent, pos, entry.type);
+			putInt32le(clstContent, pos, entry.group);
+			putInt32le(clstContent, pos, entry.instance);
+
+			if(package.indexVersion == 2) {
+				putInt32le(clstContent, pos, entry.resource);
+			}
+			
+			putInt32le(clstContent, pos, entry.uncompressedSize); //uncompressed size
+		}
+	}
+	
+	clst.location = newFile.tellp();
+	clst.size = pos;
+	
+	if(clst.size > 0) { 
+		clstContent = bytes(clstContent.begin(), clstContent.begin() + pos);
+		write(newFile, clstContent);
+		package.entries.push_back(clst);
 	}
 
 	//write the index
-	uint indexStart = file.tellp();
+	uint indexStart = newFile.tellp();
 
 	if(package.indexVersion == 2) {
 		bufferSize = package.entries.size() * 4 * 6;
@@ -401,14 +458,14 @@ void putPackage(ofstream& file, Package& package) {
 		}
 
 		putInt32le(buffer, pos, entry.location);
-		putInt32le(buffer, pos, entry.content.size());
+		putInt32le(buffer, pos, entry.size);
 	}
 	
-	write(file, buffer);
-	uint indexEnd = file.tellp();
+	write(newFile, buffer);
+	uint indexEnd = newFile.tellp();
 
 	//update the header with index info
-	file.seekp(36);
+	newFile.seekp(36);
 	
 	buffer = bytes(12);
 	pos = 0;
@@ -417,7 +474,7 @@ void putPackage(ofstream& file, Package& package) {
 	putInt32le(buffer, pos, indexStart); //index location
 	putInt32le(buffer, pos, indexEnd - indexStart); //index size
 
-	write(file, buffer);
+	write(newFile, buffer);
 }
 
 #endif

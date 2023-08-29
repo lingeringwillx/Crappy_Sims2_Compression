@@ -1,6 +1,5 @@
 #include "dbpf.h"
 
-#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -9,23 +8,6 @@
 #include <vector>
 
 using namespace std;
-
-//for debugging
-class Timer {
-	public:
-		chrono::time_point<std::chrono::steady_clock> t;
-		
-	Timer() {
-		t = chrono::high_resolution_clock::now();
-	}
-	
-	void log(string info)	{
-		//uncomment to display timers
-		int timeSpent = chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - t).count();
-		//cout << info << ": " << timeSpent << endl;
-		t = chrono::high_resolution_clock::now();
-	}
-};
 
 int main(int argc, char *argv[]) {
 	//remove last error log
@@ -40,6 +22,7 @@ int main(int argc, char *argv[]) {
 		return 0;
 	}
 	
+	//parse args
 	bool recompress = false;
 	bool decompress = false;
 	bool parallel = false;
@@ -118,8 +101,6 @@ int main(int argc, char *argv[]) {
 		return 0;
 	}
 	
-	Timer timer = Timer();
-	
 	for(auto& dir_entry: files) {
 		//open file
 		string fileName = dir_entry.path().string();
@@ -144,47 +125,16 @@ int main(int argc, char *argv[]) {
 
 		Package package = getPackage(file, displayPath);
 		
-		file.close();
-		
 		//error unpacking package
 		if(package.indexVersion == -1) {
 			continue;
 		}
-
-		timer.log("Unpack package");
 		
-		if(parallel) {
-			//parallel compression of package
-			#pragma omp parallel for
-			for(int i = 0; i < package.entries.size(); i++) {
-				if(recompress || decompress) {
-					package.entries[i].decompressEntry();
-				}
-				
-				if(!decompress || (decompress && recompress)) {
-					package.entries[i].compressEntry(level);
-				}
-			}
-		}
-		
-		else {
-			for(auto& entry: package.entries) {
-				if(recompress || decompress) {
-					entry.decompressEntry();
-				}
-				
-				if(!decompress || (decompress && recompress)) {
-					entry.compressEntry(level);
-				}
-			}
-		}
-		
-		timer.log("Compress");
-		
-		//pack package and write to temp file
+		//compress entries, pack package, and write to temp file
 		ofstream tempFile = ofstream(fileName + ".new", ios::binary);
 		if(tempFile.is_open()) {
-			putPackage(tempFile, package);
+			putPackage(tempFile, file, package, parallel, decompress, recompress, level);
+			file.close();
 			tempFile.close();
 			
 		} else {
@@ -208,8 +158,7 @@ int main(int argc, char *argv[]) {
 			continue;
 		}
 		
-		timer.log("Pack Package");
-		
+		//output file size to console
 		float new_size = filesystem::file_size(fileName) / 1024;
 		
 		if(!quiet) {
