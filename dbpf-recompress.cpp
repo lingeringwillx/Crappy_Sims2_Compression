@@ -28,8 +28,15 @@ class Timer {
 };
 
 int main(int argc, char *argv[]) {
+	//remove last error log
+	if(filesystem::is_regular_file("errors.txt")) {
+		try {
+			filesystem::remove("errors.txt");
+		} catch(filesystem::filesystem_error) {}
+	}
+	
 	if(argc == 1) {
-		cout << "No argument provided" << endl;
+		log_error("No argument provided");
 		return 0;
 	}
 	
@@ -55,14 +62,14 @@ int main(int argc, char *argv[]) {
 		
 		else if(arg.find("-l") == 0) {
 			if(arg.size() < 3) {
-				cout << "Compression level not specified" << endl;
+				log_error("Compression level not specified");
 				return 0;
 			}
 
 			level = arg[2] - 48;
 			
 			if(level != 1 && level != 3 && level != 5 && level != 7 && level != 9) {
-				cout << "Level " << level << " is not supported" << endl;
+				log_error("Level " + to_string(i) + " is not supported");
 				return 0;
 			}
 			
@@ -83,7 +90,7 @@ int main(int argc, char *argv[]) {
 	string pathName = argv[argc - 1];
 
 	if(pathName == "dbpf-recompress" || pathName.find("-") == 0) {
-		cout << "No file path provided" << endl;
+		log_error("No file path provided");
 		return 0;
 	}
 	
@@ -92,7 +99,7 @@ int main(int argc, char *argv[]) {
 	if(filesystem::is_regular_file(pathName)) {
 		int extensionLoc = pathName.find(".package");
 		if(extensionLoc == -1 || extensionLoc != pathName.size() - 8) {
-			cout << "Not a package file" << endl;
+			log_error("Not a package file");
 			return 0;
 		}
 		
@@ -107,7 +114,7 @@ int main(int argc, char *argv[]) {
 		}
 		
 	} else {
-		cout << "File not found" << endl;
+		log_error("File not found");
 		return 0;
 	}
 	
@@ -128,7 +135,7 @@ int main(int argc, char *argv[]) {
 		ifstream file = ifstream(fileName, ios::binary);
 		
 		if(!file.is_open()) {
-			cout << displayPath << ": Failed to open file" << endl;;
+			log_error(displayPath + ": Failed to open file");
 			continue;
 		}
 		
@@ -181,7 +188,7 @@ int main(int argc, char *argv[]) {
 			tempFile.close();
 			
 		} else {
-			cout << displayPath << ": Failed to create temp file" << endl;
+			log_error(displayPath + ": Failed to create temp file");
 			continue;
 		}
 		
@@ -191,7 +198,7 @@ int main(int argc, char *argv[]) {
 		}
 		
 		catch(filesystem::filesystem_error) {
-			cout << displayPath << ": Failed to overwrite file" << endl;
+			log_error(displayPath + ": Failed to overwrite file");
 			
 			try {
 				filesystem::remove(fileName + ".new");

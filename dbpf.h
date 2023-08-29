@@ -7,13 +7,23 @@
 #include <iostream>
 #include <map>
 #include <set>
-//#include <string>
+#include <string>
 #include <vector>
 
 using namespace std;
 
 typedef unsigned int uint;
 typedef vector<unsigned char> bytes;
+
+void log_error(string error) {
+	cout << error << endl;
+	ofstream logFile = ofstream("errors.txt", ios::app);
+	
+	if(logFile.is_open()) {
+		logFile << error << '\n';
+		logFile.close();
+	}
+}
 
 bytes read(ifstream& file, uint pos, uint size) {
 	bytes buf = bytes(size);
@@ -171,7 +181,7 @@ Package getPackage(ifstream& file, string displayPath) {
 	uint fileSize = getSize(file);
 	
 	if(fileSize < 64) {
-		cout << displayPath << ": Header not found" << endl;
+		log_error(displayPath + ": Header not found");
 		return Package(-1, vector<Entry>());
 	}
 	
@@ -193,12 +203,12 @@ Package getPackage(ifstream& file, string displayPath) {
 	bytes clstContent;
 	
 	if(indexVersion > 2) {
-		cout << displayPath << ": Unrecognized index version" << endl;
+		log_error(displayPath + ": Unrecognized index version");
 		return Package(-1, vector<Entry>());
 	}
 	
 	if(indexLocation > fileSize || indexLocation + indexSize > fileSize) {
-		cout << displayPath << ": File index outside of bounds for " << displayPath << endl;
+		log_error(displayPath + ": File index outside of bounds");
 		return Package(-1, vector<Entry>());
 	}
 	
@@ -210,7 +220,7 @@ Package getPackage(ifstream& file, string displayPath) {
 	}
 	
 	if(entryCountToIndexSize > indexSize) {
-		cout << displayPath << ": Entry count larger than index" << endl;
+		log_error(displayPath + ": Entry count larger than index");
 		return Package(-1, vector<Entry>());
 	}
 	
@@ -232,7 +242,7 @@ Package getPackage(ifstream& file, string displayPath) {
 		uint size = getInt32le(buffer, pos);
 		
 		if(location > fileSize || location + size > fileSize) {
-			cout << displayPath << ": Entry location outside of bounds" << endl;
+			log_error(displayPath + ": Entry location outside of bounds");
 			return Package(-1, vector<Entry>()); 
 		}
 		
