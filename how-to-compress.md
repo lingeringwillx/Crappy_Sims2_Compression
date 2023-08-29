@@ -10,17 +10,17 @@
 
 5- Copy the number of bytes specified to be copied as is from the compressed data to the decompressed data.
 
-6- Go to the back to the offset in the decompressed data and copy the number of bytes specified to the end
+6- Go back to the offset in the decompressed data and copy the number of bytes specified to the end.
 
-Note: Step 6 has to be done one byte at a time, otherwise you will get problem if the offset is less than the length (The compression allows this).
+Note: The copying in step 6 has to be done one byte at a time, otherwise you will get a problem if the offset is less than the length (The compression allows this).
 
 **The three variables that we need to extract from the control characters are:**
 
-**literal/plain** = The number of bytes to copy from compressed data as is.
+**literal/plain** = The number of bytes to copy from the compressed data as is.
 
-**offset** = The offset in the decompressed data to copy bytes from (i.e. current position - offset).
+**offset** = The offset in the *decompressed* data to copy the bytes from (i.e. current position - offset).
 
-**copy** = The number of bytes to copy from the offset in the decompressed data
+**count** = The number of bytes to copy from the offset in the *decompressed* data
 
 #### Control Characters:
 
@@ -34,8 +34,8 @@ The following bit operations can be applied to get the numbers that we need:
 //Bits: 0oocccpp oooooooo
 
 plain = b0 & 0x03 //0-3 (mask off)
-copy = ((b0 & 0x1C) >> 2) + 3 //3-11 ((mask off & shift right b0) + minimum 3)
-offset: ((b0 & 0x60) << 3) + b1 + 1 //1-1024 ((mask off & shift left b0) + b1 + minimum 1)
+count = ((b0 & 0x1C) >> 2) + 3 //3-11 ((mask off & shift right b0) + 3)
+offset: ((b0 & 0x60) << 3) + b1 + 1 //1-1024 ((mask off & shift left b0) + b1 + 1)
 ```
 
 #### Medium (0x80 - 0xBF)
@@ -46,8 +46,8 @@ Has three control characters.
 //Bits: 10cccccc ppoooooo oooooooo
 
 plain = ((b1 & 0xC0) >> 6 //0-3 (mask off & shift right b1)
-copy = (b0 & 0x3F) + 4 //4-67 (mask off b1 + minimum 4)
-offset: ((b1 & 0x3F) << 8) + b2 + 1 //1-16384 ((mask off & shift left b1) + b2 + minimum 1)
+count = (b0 & 0x3F) + 4 //4-67 (mask off b1 + 4)
+offset: ((b1 & 0x3F) << 8) + b2 + 1 //1-16384 ((mask off & shift left b1) + b2 + 1)
 ```
 
 #### Long (0xC0 - 0xDF)
@@ -58,18 +58,18 @@ Has four control characters.
 //Bits: 110occpp oooooooo oooooooo cccccccc
 
 plain = b0 & 0x03 //0-3 (mask off)
-copy = ((b0 & 0x0C) << 6) + b3 + 5 //5-1028 ((mask off & shift left b0) + b3 + minimum 5)
-Copy offset: ((b0 & 0x10) << 12) + (b1 << 8) + b2 + 1 //1-131072 ((mask off & shift left b0) + (shift left b1) + b2 + minimum 1)
+count = ((b0 & 0x0C) << 6) + b3 + 5 //5-1028 ((mask off & shift left b0) + b3 + 5)
+offset: ((b0 & 0x10) << 12) + (b1 << 8) + b2 + 1 //1-131072 ((mask off & shift left b0) + (shift left b1) + b2 + 1)
 ```
 #### Literal (0xE0 - 0xFB)
 
-Has only one control character. This one only involves literal/plain copy with no copying from the offset. It's the most confusing.
+Has only one control character. This one only involves literal/plain copy with no copying from the offset.
 
 ```C
-//Bits: 111ppppp
+//Bits: 111ppp00
 
-plain = ((b0 & 0x1F) << 2) + 4 //4-112 ((mask off & shift left b0) + minimum 4)
-copy = 0
+plain = ((b0 & 0x1F) << 2) + 4 //4-112 ((mask off & shift left b0) + 4)
+count = 0
 offset = 0
 ```
 
@@ -95,9 +95,9 @@ Note: For small files, the compressed data could end up being longer than the un
 
 3- Loop over the file and check the pattern in the current location against the previous locations. Find the longest matching pattern, or at least find a match of a good length. The match has to be within the length and offset boundaries specified by the compression algorithm.
 
-4- Once you found a match, add literal control characters a long with their bytes to the compressed stream until you've reached the location of the match, then convert the length and offset of the match to control characters and add them to the compressed output.
-
 Note: Start at byte 9 to leave room for the compression header.
+
+4- Once you found a match, add literal control characters a long with their bytes to the compressed data until you've reached the location of the match, then convert the length and offset of the match to control characters and add them to the compressed output.
 
 5- Repeat this until you've added the last match. After that add literal and EOF control characters along with their respective bytes until you reach the end of the uncompressed data.
 
@@ -107,6 +107,8 @@ Note: Start at byte 9 to leave room for the compression header.
 
 #### Control Characters
 
+Note: In most modder code the subtraction for the offset (offset - 1) is done before the bit operations.
+
 #### Short
 
 The minimum length for the matching pattern should be 3 (otherwise this compression is not useful).
@@ -114,9 +116,9 @@ The minimum length for the matching pattern should be 3 (otherwise this compress
 ```C
 //Bits: 0oocccpp oooooooo
 
-// 0 <= plain <= 3, 3 <= copy <= 10, 1 <= offset <= 1024
-b0 = ((offset >> 3) & 0x60) + ((copy - 3) << 2) + plain // (shift right & mask off offset + (shift left (copy - 3)))
-b1 = offset // first 8 bits of offset
+// 0 <= plain <= 3, 3 <= count <= 10, 1 <= offset <= 1024
+b0 = (((offset - 1) >> 3) & 0x60) | ((count - 3) << 2) | plain // (shift right & mask off (offset - 1)) + (shift left (count - 3))
+b1 = offset - 1 // first 8 bits of (offset - 1)
 ```
 
 #### Medium
@@ -126,10 +128,10 @@ The minimum length for the matching pattern should be 4 (otherwise this compress
 ```C
 //Bits: 10cccccc ppoooooo oooooooo
 
-// 0 <= plain <= 3, 4 <= copy <= 67, 1 <= offset <= 16384
-b0 = 0x80 + (copy - 4) // mask on bit 1 + (copy - minimum 4)
-b1 = (plain << 6) + (offset >> 8) // shift plain left + shift offset right
-b2 = offset // first 8 bits of offset
+// 0 <= plain <= 3, 4 <= count <= 67, 1 <= offset <= 16384
+b0 = 0x80 | (count - 4) // mask on bit 1 + (count - 4)
+b1 = (plain << 6) | ((offset - 1) >> 8) // shift plain left + shift (offset - 1) right
+b2 = offset - 1 // first 8 bits of (offset - 1)
 ```
 
 #### Long
@@ -139,11 +141,11 @@ The minimum length for the matching pattern should be 5 (otherwise this compress
 ```C
 //Bits: 110occpp oooooooo oooooooo cccccccc
 
-// 0 <= plain <= 3, 5 <= copy <= 1028, 1 <= offset <= 131072
-b0 = 0xC0 + ((offset >> 12) & 0x10) + ((copy - 5) >> 6) & 0x0C) + plain // (mask on bit 1-2 + (shift right & mask off offset) + (shift right & mask off (copy - minimum 5)) + plain
-b1 = offset >> 8 // shift right offset
-b2 = offset // first 8 bits of offset
-b3 = copy - 5 // first 8 bits of (copy - 5)
+// 0 <= plain <= 3, 5 <= count <= 1028, 1 <= offset <= 131072
+b0 = 0xC0 | (((offset - 1) >> 12) & 0x10) | ((count - 5) >> 6) & 0x0C) | plain // (mask on bit 1-2 + (shift right & mask off (offset - 1)) + (shift right & mask off (count - 5)) + plain
+b1 = (offset - 1) >> 8 // shift right (offset - 1)
+b2 = (offset - 1) // first 8 bits of (offset - 1)
+b3 = count - 5 // first 8 bits of (count - 5)
 ```
 #### Literal
 
@@ -152,10 +154,10 @@ Copy as is from the uncompressed data without compression. Can be added multiple
 Note: This must be a multiple of four due to the 2 bit right shift truncating the last two bits.
 
 ```C
-//Bits: 111ppppp
+//Bits: 111ppp00
 
-// 4 <= plain <= 112, copy = 0, offset = 0
-b0 = E0 | ((plain - 4) >> 2) // mask on bits 1-3 + (shift right (plain - minimum 4))
+// 4 <= plain <= 112, count = 0, offset = 0
+b0 = 0xE0 | ((plain - 4) >> 2) // mask on bits 1-3 + (shift right (plain - 4))
 ```
 
 #### EOF
@@ -165,6 +167,6 @@ Added to the end of the compressed data if you still need to add 1-3 bytes to be
 ```C
 //Bits: Bits: 111111pp
 
-// 0 <= plain <= 3, copy = 0, offset = 0
+// 0 <= plain <= 3, count = 0, offset = 0
 b0 = 0xFC | plain // mask on bits 1-6
 ```
