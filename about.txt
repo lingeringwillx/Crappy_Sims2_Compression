@@ -6,4 +6,4 @@ It also allows a much longer length and offset to be encoded.
 
 The algorithm doesn't employ any other common compression method s(such as Huffman Coding) other than eliminating repeated patterns like the LZSS.
 
-The longer length and offset increases CPU and memory usage, and it doesn't seem to yield a significant improvement in the compressed size, so I don't know why EA didn't just use DEFLATE. I guess they waited until the patent for DEFLATE died?
+The longer length and offset increases CPU and memory usage, and it doesn't seem to yield a significant improvement in the compressed size, so I don't know why EA didn't just use DEFLATE. I guess they waited until the patent for DEFLATE expired.
