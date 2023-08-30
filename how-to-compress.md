@@ -81,7 +81,7 @@ offset = 0
 
 #### EOF (0xFD - 0xFF)
 
-Has only one control character. This one is usually used for the end of the compressed data. Although there is nothing preventing it from appearing elsewhere.
+Has only one control character. This is used for the remaining portion of the compressed data at the end.
 
 ```C
 //Bits: Bits: 111111pp
