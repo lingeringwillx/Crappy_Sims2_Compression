@@ -41,12 +41,12 @@ Alternatively, you can just drag and drop your file or folder to the executable 
 
 [ModTheSims](https://modthesims.info/wiki.php?title=DBPF/Compression): Likely has some subtle mistakes here and there but still a good resource.
 
-[Implementation by @actionninja](https://github.com/actioninja/refpack-rs): Has a lot of information on the compression algorithm.
+[Rust implementation by @actionninja](https://github.com/actioninja/refpack-rs): Has a lot of information on the compression algorithm.
 
 [Old Mystical Implementation by BenK](http://www.moreawesomethanyou.com/smf/index.php/topic,8279.0.html): Old hard to read implementation based on zlib code. This is the strongest version of the compression out there and it's the same one used by The Compressorizer.
 
-[Implementation by @memo33](https://github.com/memo33/jDBPFX/blob/master/src/jdbpfx/util/DBPFPackager.java): This version is for SimCity 4 so there is likely some small differences between it and the one used by The Sims 2.
+[Java implementation by @memo33](https://github.com/memo33/jDBPFX/blob/master/src/jdbpfx/util/DBPFPackager.java)
 
-[Implementation by @LazyDuchess](https://github.com/LazyDuchess/OpenTS2/blob/master/Assets/Scripts/OpenTS2/Files/Formats/DBPF/DBPFCompression.cs): I don't know if this one works without issues.
+[C# implementation by @0xC0000054](https://github.com/0xC0000054/DBPFSharp/blob/main/src/DBPFSharp/QfsCompression.cs)
 
 [Explanation of zlib](https://www.euccas.me/zlib/): The Compressorizer's code is heavily based on this library.
