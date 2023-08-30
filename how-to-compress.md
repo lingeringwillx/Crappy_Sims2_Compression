@@ -101,9 +101,9 @@ Note: For small files, the compressed data could end up being longer than the un
 
 3- Loop over the file and check the pattern in the current location against the previous locations. Find the longest matching pattern, or at least find a match of a good length. The match has to be within the length and offset boundaries specified by the compression algorithm.
 
-Note: Start at byte 9 to leave room for the compression header.
-
 4- Once you found a match, add literal control characters a long with their bytes to the compressed data until you've reached the location of the match, then convert the length and offset of the match to control characters and add them to the compressed output.
+
+Note: Start at byte 9 to leave room for the compression header.
 
 5- Repeat this until you've added the last match. After that add literal and EOF control characters along with their respective bytes until you reach the end of the uncompressed data.
 
