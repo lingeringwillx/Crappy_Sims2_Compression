@@ -394,7 +394,6 @@ void putPackage(ofstream& newFile, ifstream& oldFile, Package& package, bool par
 			
 			package.entries[i].size = buffer.size();
 			
-			//we only care about the uncompressed size if the file is compressed
 			if(package.entries[i].listedInDir && package.entries[i].hasCompressionHeader) {
 				uint tempPos = 6;
 				package.entries[i].uncompressedSize = getInt24bg(buffer, tempPos);
