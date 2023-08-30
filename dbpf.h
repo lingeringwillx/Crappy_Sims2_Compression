@@ -361,11 +361,11 @@ void putPackage(ofstream& newFile, ifstream& oldFile, Package& package, bool par
 				content = package.entries[i].compressEntry(content, level);
 			}
 			
-			uint tempPos = 6;
 			package.entries[i].size = content.size();
 			
 			//we only care about the uncompressed size if the file is compressed
 			if(package.entries[i].listedInDir && package.entries[i].hasCompressionHeader) {
+				uint tempPos = 6;
 				package.entries[i].uncompressedSize = getInt24bg(content, tempPos);
 			}
 			
@@ -392,10 +392,15 @@ void putPackage(ofstream& newFile, ifstream& oldFile, Package& package, bool par
 				buffer = package.entries[i].compressEntry(buffer, level);
 			}
 			
-			uint tempPos = 6;
-			package.entries[i].uncompressedSize = getInt24bg(buffer, tempPos);
-			package.entries[i].location = newFile.tellp();
 			package.entries[i].size = buffer.size();
+			
+			//we only care about the uncompressed size if the file is compressed
+			if(package.entries[i].listedInDir && package.entries[i].hasCompressionHeader) {
+				uint tempPos = 6;
+				package.entries[i].uncompressedSize = getInt24bg(buffer, tempPos);
+			}
+			
+			package.entries[i].location = newFile.tellp();
 			write(newFile, buffer);
 		}
 	}
