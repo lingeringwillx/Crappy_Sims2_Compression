@@ -205,9 +205,8 @@ Package getPackage(ifstream& file, string displayPath) {
 	uint indexVersion = getInt32le(buffer, pos);
 
 	vector<Entry> entries;
-	entries.reserve(entryCount);
-
-	bool hasClst = false;
+	entries.reserve(entryCount + 1);
+	
 	bytes clstContent;
 	
 	//error checking
@@ -257,7 +256,7 @@ Package getPackage(ifstream& file, string displayPath) {
 		
 		if(type == 0xE86B1EEF) {
 			clstContent = read(file, location, size);
-			hasClst = true;
+			
 		} else {
 			Entry entry = Entry(type, group, instance, resource, location, size);
 			entries.push_back(entry);
@@ -265,7 +264,7 @@ Package getPackage(ifstream& file, string displayPath) {
 	}
 
 	//directory of compressed files
-	if(hasClst) {
+	if(clstContent.size() > 0) {
 		set<CompressedEntry> CompressedEntries;
 
 		pos = 0;
@@ -345,6 +344,7 @@ void putPackage(ofstream& newFile, ifstream& oldFile, Package& package, bool par
 	if(parallel) {
 		omp_lock_t lock;
 		omp_init_lock(&lock);
+		
 		#pragma omp parallel for
 		for(int i = 0; i < package.entries.size(); i++) {
 			omp_set_lock(&lock);
@@ -407,8 +407,7 @@ void putPackage(ofstream& newFile, ifstream& oldFile, Package& package, bool par
 	//make and write the directory of compressed files
 	bytes clstContent;
 	pos = 0;
-
-	clstContent = bytes();
+	
 	if(package.indexVersion == 2) {
 		clstContent = bytes(package.entries.size() * 4 * 5);
 	} else {
@@ -431,7 +430,6 @@ void putPackage(ofstream& newFile, ifstream& oldFile, Package& package, bool par
 		}
 	}
 	
-	clst.location = newFile.tellp();
 	clst.size = pos;
 	
 	if(clst.size > 0) { 
