@@ -29,7 +29,7 @@ b- Finish searching and use the match that we have once a match above a certain 
 
 #### Trie
 
-Tries can also be used to find the longest match. However, a regular trie would use up all memory and take a long time to build. Hence, special optimizations would have to be implemented to make it work. It's also more difficult to implement.
+Tries can also be used to find the longest match. However, a regular trie would use up all memory and take a long time to build. Hence, special optimizations would have to be made to make it work. It's also more difficult to implement.
 
 #### Suffix Array
 
