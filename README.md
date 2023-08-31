@@ -10,11 +10,9 @@ Benchmark: `python benchmark.py package_file`
 
 There is now an experimental release that could be used as a drop-in replacement for The Compressorizer's original executable. It achieves faster compression in the following ways:
 
-1- It doesn't compress the parts of the file that were already compressed before.
-
 1- Utilizing all of the cores of your PC for compression, so if you have a dual core CPU then compression will be roughly 2x faster, and if you have a quad core CPU then it will be 4x faster, etc.
 
-3- By using level 5 compression parameters instead of level 9.
+2- By using level 5 compression parameters instead of level 9.
 
 To use it, just download the .exe file and put it in the same directory as The Compressorizer, overwriting the old file.
 
