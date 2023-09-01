@@ -77,7 +77,7 @@ class Entry {
 		uint location;
 		uint size;
 		uint uncompressedSize = 0;
-		bool compressed = false; //listed in dir AND has bytes 0x10FB in the header
+		bool compressed = false;
 		bool repeated = false; //appears twice in same package
 		
 	Entry(uint typeId, uint groupId, uint instanceId, uint resourceId, uint loc, uint len) {
