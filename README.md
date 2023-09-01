@@ -25,7 +25,7 @@ Alternatively, you can just drag and drop your file or folder to the executable 
 | `-l` | Compression Level | Can be `-l1`, `-l3`, `-l5`, `-l7`, or `-l9`. Higher values mean stronger but slower compression |
 | `-r` | Recompress | Decompress the file then compress it again, can provide a bigger compression if the older compression is weak, but will slow down the compression (Note: This is always enabled in the release version) |
 | `-p` | Parallel | Use all cores for compresson, will speed up the compression but will use 100% of CPU during compression (Note: This is always enabled in the release version) |
-| `-d` | Decompress | Decompress without compression, if flag `-r` is also set then the file will also be compressed again |
+| `-d` | Decompress | Decompress without compression |
 | `-q` | Quiet | Don't output anything to the console except for errors |
 
 ### Resources

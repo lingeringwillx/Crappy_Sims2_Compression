@@ -10,15 +10,8 @@
 using namespace std;
 
 int main(int argc, char *argv[]) {
-	//remove last error log
-	if(filesystem::is_regular_file("errors.txt")) {
-		try {
-			filesystem::remove("errors.txt");
-		} catch(filesystem::filesystem_error) {}
-	}
-	
 	if(argc == 1) {
-		log_error("No argument provided");
+		cout << "No argument provided" << endl;
 		return 0;
 	}
 	
@@ -45,14 +38,14 @@ int main(int argc, char *argv[]) {
 		
 		else if(arg.find("-l") == 0) {
 			if(arg.size() < 3) {
-				log_error("Compression level not specified");
+				cout << "Compression level not specified" << endl;
 				return 0;
 			}
 
 			level = arg[2] - 48;
 			
 			if(level != 1 && level != 3 && level != 5 && level != 7 && level != 9) {
-				log_error("Level " + to_string(i) + " is not supported");
+				cout << "Level " << to_string(i) << " is not supported" << endl;
 				return 0;
 			}
 			
@@ -69,11 +62,16 @@ int main(int argc, char *argv[]) {
 			quiet = true;
 		}
 	}
-
+	
+	if(decompress && recompress) {
+		cout << "Cannot use arguments -d and -r at the same time" << endl;
+		return 0;
+	}
+	
 	string pathName = argv[argc - 1];
 
 	if(pathName == "dbpf-recompress" || pathName.find("-") == 0) {
-		log_error("No file path provided");
+		cout << "No file path provided" << endl;
 		return 0;
 	}
 	
@@ -82,7 +80,7 @@ int main(int argc, char *argv[]) {
 	if(filesystem::is_regular_file(pathName)) {
 		int extensionLoc = pathName.find(".package");
 		if(extensionLoc == -1 || extensionLoc != pathName.size() - 8) {
-			log_error("Not a package file");
+			cout << "Not a package file" << endl;
 			return 0;
 		}
 		
@@ -97,7 +95,7 @@ int main(int argc, char *argv[]) {
 		}
 		
 	} else {
-		log_error("File not found");
+		cout << "File not found" << endl;
 		return 0;
 	}
 	
@@ -116,7 +114,7 @@ int main(int argc, char *argv[]) {
 		ifstream file = ifstream(fileName, ios::binary);
 		
 		if(!file.is_open()) {
-			log_error(displayPath + ": Failed to open file");
+			cout << displayPath << ": Failed to open file" << endl;
 			continue;
 		}
 		
@@ -127,6 +125,7 @@ int main(int argc, char *argv[]) {
 		
 		//error unpacking package
 		if(package.indexVersion == -1) {
+			file.close();
 			continue;
 		}
 		
@@ -134,28 +133,86 @@ int main(int argc, char *argv[]) {
 		ofstream tempFile = ofstream(fileName + ".new", ios::binary);
 		if(tempFile.is_open()) {
 			putPackage(tempFile, file, package, parallel, decompress, recompress, level);
-			file.close();
 			tempFile.close();
 			
 		} else {
-			log_error(displayPath + ": Failed to create temp file");
+			cout << displayPath << ": Failed to create temp file" << endl;
 			continue;
 		}
 		
-		//overwrite old file
-		try {
-			filesystem::rename(fileName + ".new", fileName);
+		//validate new file
+		Package oldPackage = getPackage(file, displayPath);
+		ifstream newFile = ifstream(fileName + ".new", ios::binary);
+		
+		bool validationFailed = false;
+		
+		if(!newFile.is_open()) {
+			cout << displayPath << ": Could not open new package file" << endl;
+			validationFailed = true;
 		}
 		
-		catch(filesystem::filesystem_error) {
-			log_error(displayPath + ": Failed to overwrite file");
-			
+		Package newPackage = getPackage(newFile, displayPath + ".new");
+		
+		if(!validationFailed && newPackage.indexVersion == -1) {
+			cout << displayPath << ": Failed to load new package" << endl;
+			validationFailed = true;
+		}
+		
+		if(!validationFailed && (oldPackage.entries.size() != newPackage.entries.size())) {
+			cout << displayPath << ": Number of entries between old package and new package not matching" << endl;
+			validationFailed = true;
+		}
+		
+		if(!validationFailed) {
+			for(int i = 0; i < oldPackage.entries.size(); i++) {
+				if(oldPackage.entries[i].type != newPackage.entries[i].type || oldPackage.entries[i].group != newPackage.entries[i].group || oldPackage.entries[i].instance != newPackage.entries[i].instance || oldPackage.entries[i].resource != newPackage.entries[i].resource) {
+					cout << displayPath << ": Types, groups, instances, or resources of entries not matching" << endl;
+					validationFailed = true;
+					break;
+				}
+				
+				if(oldPackage.entries[i].decompressEntry(read(file, oldPackage.entries[i].location, oldPackage.entries[i].size)) != newPackage.entries[i].decompressEntry(read(newFile, newPackage.entries[i].location, newPackage.entries[i].size))) {
+					cout << displayPath << ": Mismatch between old entry and new entry" << endl;
+					validationFailed = true;
+					break;
+				}
+			}
+		}
+		
+		file.close();
+		newFile.close();
+		
+		if(validationFailed) {
 			try {
 				filesystem::remove(fileName + ".new");
 				
 			} catch(filesystem::filesystem_error) {}
 			
 			continue;
+		}
+		
+		//overwrite old file
+		if(decompress || filesystem::file_size(fileName + ".new") < filesystem::file_size(fileName)) {
+			try {
+				filesystem::rename(fileName + ".new", fileName);
+			}
+			
+			catch(filesystem::filesystem_error) {
+				cout << displayPath << ": Failed to overwrite file" << endl;
+				
+				try {
+					filesystem::remove(fileName + ".new");
+					
+				} catch(filesystem::filesystem_error) {}
+				
+				continue;
+			}
+			
+		} else {
+			try {
+				filesystem::remove(fileName + ".new");
+				
+			} catch(filesystem::filesystem_error) {}
 		}
 		
 		//output file size to console
