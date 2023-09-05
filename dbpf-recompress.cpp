@@ -171,23 +171,8 @@ int main(int argc, char *argv[]) {
 					break;
 				}
 				
-				if(oldPackage.entries[i].decompressEntry(read(file, oldPackage.entries[i].location, oldPackage.entries[i].size)) != newPackage.entries[i].decompressEntry(read(newFile, newPackage.entries[i].location, newPackage.entries[i].size))) {
+				if(decompressEntry(oldPackage.entries[i], read(file, oldPackage.entries[i].location, oldPackage.entries[i].size)) != decompressEntry(newPackage.entries[i], read(newFile, newPackage.entries[i].location, newPackage.entries[i].size))) {
 					cout << displayPath << ": Mismatch between old entry and new entry" << endl;
-					
-					
-					for (auto i: oldPackage.entries[i].decompressEntry(read(file, oldPackage.entries[i].location, oldPackage.entries[i].size))) {
-						cout << (int) i << ' ';
-					}
-					
-					cout << endl;
-					
-					for (auto i: read(newFile, newPackage.entries[i].location, newPackage.entries[i].size)) {
-						std::cout << (int) i << ' ';
-					}
-					
-					cout << endl;
-					
-					
 					validationFailed = true;
 					break;
 				}

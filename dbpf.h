@@ -88,39 +88,39 @@ class Entry {
 		location = loc;
 		size = len;
 	}
-
-	bytes compressEntry(bytes& content, int level) {
-		if(!compressed && !repeated) {
-			bytes newContent = bytes((content.size() - 1)); //must be smaller than the original, otherwise there is no benefit
-			int length = try_compress(&content[0], content.size(), &newContent[0], level);
-			
-			if(length > 0) {
-				compressed = true;
-				return bytes(newContent.begin(), newContent.begin() + length);
-			}
-		}
-		
-		return content;
-	}
-
-	bytes decompressEntry(bytes& content) {
-		if(compressed) {
-			uint tempPos = 6;
-			bytes newContent = bytes((getInt24bg(content, tempPos))); //uncompressed
-			bool success = decompress(&content[0], content.size(), &newContent[0], newContent.size(), false);
-			
-			if(success) {
-				compressed = false;
-				return newContent;
-				
-			} else {
-				cout << "Failed to decompress entry" << endl;
-			}
-		}
-		
-		return content;
-	}
 };
+
+bytes compressEntry(Entry& entry, bytes& content, int level) {
+	if(!entry.compressed && !entry.repeated) {
+		bytes newContent = bytes((content.size() - 1)); //must be smaller than the original, otherwise there is no benefit
+		int length = try_compress(&content[0], content.size(), &newContent[0], level);
+		
+		if(length > 0) {
+			entry.compressed = true;
+			return bytes(newContent.begin(), newContent.begin() + length);
+		}
+	}
+	
+	return content;
+}
+
+bytes decompressEntry(Entry& entry, bytes& content) {
+	if(entry.compressed) {
+		uint tempPos = 6;
+		bytes newContent = bytes((getInt24bg(content, tempPos))); //uncompressed
+		bool success = decompress(&content[0], content.size(), &newContent[0], newContent.size(), false);
+		
+		if(success) {
+			entry.compressed = false;
+			return newContent;
+			
+		} else {
+			cout << "Failed to decompress entry" << endl;
+		}
+	}
+	
+	return content;
+}
 
 //for holding info from the DIR/CLST
 struct CompressedEntry {
@@ -341,11 +341,11 @@ void putPackage(ofstream& newFile, ifstream& oldFile, Package& package, bool inP
 		
 		bytes newContent;
 		if(decompress) {
-			content = package.entries[i].decompressEntry(content);
+			content = decompressEntry(package.entries[i], content);
 		
 		} else if(recompress) {
-			bytes decompressedContent = package.entries[i].decompressEntry(content);
-			newContent = package.entries[i].compressEntry(decompressedContent, level);
+			bytes decompressedContent = decompressEntry(package.entries[i], content);
+			newContent = compressEntry(package.entries[i], decompressedContent, level);
 			
 			//only use the new compressed entry if it's smaller than the old compressed entry
 			if(newContent.size() < content.size()) {
@@ -357,7 +357,7 @@ void putPackage(ofstream& newFile, ifstream& oldFile, Package& package, bool inP
 			}
 			
 		} else {
-			newContent = package.entries[i].compressEntry(content, level);
+			newContent = compressEntry(package.entries[i], content, level);
 			content = newContent;
 		}
 		
