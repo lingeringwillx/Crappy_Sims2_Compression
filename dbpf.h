@@ -295,7 +295,7 @@ Package getPackage(ifstream& file, string displayPath) {
 }
 
 //put package in file
-void putPackage(ofstream& newFile, ifstream& oldFile, Package& package, bool parallel, bool decompress, bool recompress, uint level) {
+void putPackage(ofstream& newFile, ifstream& oldFile, Package& package, bool inParallel, bool decompress, bool recompress, uint level) {
 	//write header
 	uint bufferSize = 96;
 	bytes buffer = bytes(bufferSize);
@@ -328,97 +328,56 @@ void putPackage(ofstream& newFile, ifstream& oldFile, Package& package, bool par
 
 	//compress and write entries, and save the location and size for the index
 	
-	if(parallel) {
-		omp_lock_t lock;
-		omp_init_lock(&lock);
+	omp_lock_t lock;
+	omp_init_lock(&lock);
+	
+	#pragma omp parallel for if(inParallel)
+	for(int i = 0; i < package.entries.size(); i++) {
+		omp_set_lock(&lock);
+		bytes content = read(oldFile, package.entries[i].location, package.entries[i].size);
+		omp_unset_lock(&lock);
 		
-		#pragma omp parallel for
-		for(int i = 0; i < package.entries.size(); i++) {
-			omp_set_lock(&lock);
-			bytes content = read(oldFile, package.entries[i].location, package.entries[i].size);
-			omp_unset_lock(&lock);
+		bool wasCompressed = package.entries[i].compressed;
+		
+		bytes newContent;
+		if(decompress) {
+			content = package.entries[i].decompressEntry(content);
+		
+		} else if(recompress) {
+			bytes decompressedContent = package.entries[i].decompressEntry(content);
+			newContent = package.entries[i].compressEntry(decompressedContent, level);
 			
-			bool wasCompressed = package.entries[i].compressed;
-			
-			bytes newContent;
-			if(decompress) {
-				content = package.entries[i].decompressEntry(content);
-			
-			} else if(recompress) {
-				bytes decompressedContent = package.entries[i].decompressEntry(content);
-				newContent = package.entries[i].compressEntry(decompressedContent, level);
+			//only use the new compressed entry if it's smaller than the old compressed entry
+			if(newContent.size() < content.size()) {
 				content = newContent;
 				
-				//only use the new compressed entry if it's smaller than the old compressed entry
-				if(newContent.size() < content.size()) {
-					content = newContent;
-					
-				//otherwise use the old entry
-				} else {
-					package.entries[i].compressed = wasCompressed;
-				}
-				
+			//otherwise use the old entry
 			} else {
-				newContent = package.entries[i].compressEntry(content, level);
-				content = newContent;
+				package.entries[i].compressed = wasCompressed;
 			}
 			
-			package.entries[i].size = content.size();
-			
-			//we only care about the uncompressed size if the file is compressed
-			if(package.entries[i].compressed) {
-				uint tempPos = 6;
-				package.entries[i].uncompressedSize = getInt24bg(content, tempPos);
-			}
-			
-			omp_set_lock(&lock);
-			
-			package.entries[i].location = newFile.tellp();
-			write(newFile, content);
-			
-			omp_unset_lock(&lock);
+		} else {
+			newContent = package.entries[i].compressEntry(content, level);
+			content = newContent;
 		}
 		
-		omp_destroy_lock(&lock);
+		package.entries[i].size = content.size();
 		
-	} else {
-		for(int i = 0; i < package.entries.size(); i++) {
-			bytes content = read(oldFile, package.entries[i].location, package.entries[i].size);
-			bool wasCompressed = package.entries[i].compressed;
-			
-			bytes newContent;
-			if(decompress) {
-				newContent = package.entries[i].decompressEntry(content);
-				content = newContent;
-			
-			} else if(recompress) {
-				bytes decompressedContent = package.entries[i].decompressEntry(content);
-				newContent = package.entries[i].compressEntry(decompressedContent, level);
-				
-				if(newContent.size() < content.size()) {
-					content = newContent;
-					
-				//otherwise use the old entry
-				} else {
-					package.entries[i].compressed = wasCompressed;
-				}
-				
-			} else {
-				newContent = package.entries[i].compressEntry(content, level);
-				content = newContent;
-			}
-			
-			package.entries[i].size = content.size();
-			
-			if(package.entries[i].compressed) {
-				uint tempPos = 6;
-				package.entries[i].uncompressedSize = getInt24bg(content, tempPos);
-			}
-						
-			package.entries[i].location = newFile.tellp();
-			write(newFile, content);
+		//we only care about the uncompressed size if the file is compressed
+		if(package.entries[i].compressed) {
+			uint tempPos = 6;
+			package.entries[i].uncompressedSize = getInt24bg(content, tempPos);
 		}
+		
+		omp_set_lock(&lock);
+		
+		package.entries[i].location = newFile.tellp();
+		write(newFile, content);
+		
+		omp_unset_lock(&lock);
 	}
+	
+	omp_destroy_lock(&lock);
 	
 	//make and write the directory of compressed files
 	bytes clstContent;

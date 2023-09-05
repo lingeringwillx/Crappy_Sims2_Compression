@@ -18,7 +18,7 @@ int main(int argc, char *argv[]) {
 	//parse args
 	bool recompress = false;
 	bool decompress = false;
-	bool parallel = false;
+	bool inParallel = false;
 	bool quiet = false;
 	int level = 5;
 	
@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
 			decompress = true;
 			
 		} else if(arg == "-p") {
-			parallel = true;
+			inParallel = true;
 		
 		} else if(arg =="-q") {
 			quiet = true;
@@ -132,7 +132,7 @@ int main(int argc, char *argv[]) {
 		//compress entries, pack package, and write to temp file
 		ofstream tempFile = ofstream(fileName + ".new", ios::binary);
 		if(tempFile.is_open()) {
-			putPackage(tempFile, file, package, parallel, decompress, recompress, level);
+			putPackage(tempFile, file, package, inParallel, decompress, recompress, level);
 			tempFile.close();
 			
 		} else {
@@ -173,6 +173,21 @@ int main(int argc, char *argv[]) {
 				
 				if(oldPackage.entries[i].decompressEntry(read(file, oldPackage.entries[i].location, oldPackage.entries[i].size)) != newPackage.entries[i].decompressEntry(read(newFile, newPackage.entries[i].location, newPackage.entries[i].size))) {
 					cout << displayPath << ": Mismatch between old entry and new entry" << endl;
+					
+					
+					for (auto i: oldPackage.entries[i].decompressEntry(read(file, oldPackage.entries[i].location, oldPackage.entries[i].size))) {
+						cout << (int) i << ' ';
+					}
+					
+					cout << endl;
+					
+					for (auto i: read(newFile, newPackage.entries[i].location, newPackage.entries[i].size)) {
+						std::cout << (int) i << ' ';
+					}
+					
+					cout << endl;
+					
+					
 					validationFailed = true;
 					break;
 				}
@@ -211,8 +226,11 @@ int main(int argc, char *argv[]) {
 		} else {
 			try {
 				filesystem::remove(fileName + ".new");
+				cout << displayPath << ": New file is larger or equal to the old file" << endl;
 				
 			} catch(filesystem::filesystem_error) {}
+			
+			continue;
 		}
 		
 		//output file size to console
