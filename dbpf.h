@@ -68,26 +68,16 @@ void putInt24bg(bytes& buf, uint& pos, uint n) {
 }
 
 //representing one entry (file) inside the package
-class Entry {
-	public:
-		uint type;
-		uint group;
-		uint instance;
-		uint resource;
-		uint location;
-		uint size;
-		uint uncompressedSize = 0;
-		bool compressed = false;
-		bool repeated = false; //appears twice in same package
-		
-	Entry(uint typeId, uint groupId, uint instanceId, uint resourceId, uint loc, uint len) {
-		type = typeId;
-		group = groupId;
-		instance = instanceId;
-		resource = resourceId;
-		location = loc;
-		size = len;
-	}
+struct Entry {
+	uint type;
+	uint group;
+	uint instance;
+	uint resource;
+	uint location;
+	uint size;
+	uint uncompressedSize = 0;
+	bool compressed = false;
+	bool repeated = false; //appears twice in same package
 };
 
 bytes compressEntry(Entry& entry, bytes& content, int level) {
@@ -131,8 +121,8 @@ struct CompressedEntry {
 	uint uncompressedSize;
 };
 
-//for use by sets and maps
-bool operator< (CompressedEntry entry, CompressedEntry entry2) {
+template<typename EntryType>
+bool compareTGIs(EntryType entry, EntryType entry2) {
 	if(entry.type != entry2.type) {
 		return entry.type < entry2.type;
 	}
@@ -152,16 +142,19 @@ bool operator< (CompressedEntry entry, CompressedEntry entry2) {
 	return false;
 }
 
+//for use by sets and maps
+bool operator< (Entry entry, Entry entry2) {
+	return compareTGIs<Entry>(entry, entry2);
+}
+
+bool operator< (CompressedEntry entry, CompressedEntry entry2) {
+	return compareTGIs<CompressedEntry>(entry, entry2);
+}
+
 //representing one package file
-class Package {
-	public:
-		uint indexVersion;
-		vector<Entry> entries;
-		
-	Package(uint indexVersionNumber, vector<Entry>& entriesVector) {
-		indexVersion = indexVersionNumber;
-		entries = entriesVector;
-	}
+struct Package {
+	int indexVersion;
+	vector<Entry> entries;
 };
 
 //get package infromation from file
@@ -172,7 +165,7 @@ Package getPackage(ifstream& file, string displayPath) {
 		
 	if(fileSize < 64) {
 		cout << displayPath << ": Header not found" << endl;
-		return Package(-1, vector<Entry>());
+		return Package{-1, vector<Entry>()};
 	}
 	
 	//header
@@ -184,22 +177,22 @@ Package getPackage(ifstream& file, string displayPath) {
 	uint indexSize = getInt32le(buffer, pos);
 
 	pos += 12;
-	uint indexVersion = getInt32le(buffer, pos);
-
-	vector<Entry> entries;
-	entries.reserve(entryCount + 1);
+	int indexVersion = getInt32le(buffer, pos);
+	
+	Package package = Package{indexVersion, vector<Entry>()};
+	package.entries.reserve(entryCount + 1);
 	
 	bytes clstContent;
 	
 	//error checking
 	if(indexVersion > 2) {
 		cout << displayPath << ": Unrecognized index version" << endl;
-		return Package(-1, vector<Entry>());
+		return Package{-1, vector<Entry>()};
 	}
 	
 	if(indexLocation > fileSize || indexLocation + indexSize > fileSize) {
 		cout << displayPath << ": File index outside of bounds" << endl;
-		return Package(-1, vector<Entry>());
+		return Package{-1, vector<Entry>()};
 	}
 	
 	uint entryCountToIndexSize = 0;
@@ -211,7 +204,7 @@ Package getPackage(ifstream& file, string displayPath) {
 	
 	if(entryCountToIndexSize > indexSize) {
 		cout << displayPath << ": Entry count larger than index" << endl;
-		return Package(-1, vector<Entry>());
+		return Package{-1, vector<Entry>()};
 	}
 	
 	//index
@@ -233,15 +226,15 @@ Package getPackage(ifstream& file, string displayPath) {
 		
 		if(location > fileSize || location + size > fileSize) {
 			cout << displayPath << ": Entry location outside of bounds" << endl;
-			return Package(-1, vector<Entry>()); 
+			return Package{-1, vector<Entry>()}; 
 		}
 		
 		if(type == 0xE86B1EEF) {
 			clstContent = read(file, location, size);
 			
 		} else {
-			Entry entry = Entry(type, group, instance, resource, location, size);
-			entries.push_back(entry);
+			Entry entry = Entry{type, group, instance, resource, location, size};
+			package.entries.push_back(entry);
 		}
 	}
 
@@ -265,7 +258,7 @@ Package getPackage(ifstream& file, string displayPath) {
 		}
 		
 		//check if entries are compressed
-		for(auto& entry: entries) {
+		for(auto& entry: package.entries) {
 			auto iter = compressedEntries.find(CompressedEntry{entry.type, entry.group, entry.instance, entry.resource});
 			if(iter != compressedEntries.end()) {
 				
@@ -278,20 +271,21 @@ Package getPackage(ifstream& file, string displayPath) {
 	}
 	
 	//check if entries with repeated TGIRs exist (we don't want to compress those)
-	map<CompressedEntry, uint> entriesMap;
-	for(uint i = 0; i < entries.size(); i++) {
-		if(entriesMap.find(CompressedEntry{entries[i].type, entries[i].group, entries[i].instance, entries[i].resource}) != entriesMap.end()) {
-			uint j = entriesMap[CompressedEntry{entries[i].type, entries[i].group, entries[i].instance, entries[i].resource}];
+	map<Entry, uint> entriesMap;
+	for(uint i = 0; i < package.entries.size(); i++) {
+		auto iter = entriesMap.find(package.entries[i]);
+		if(iter != entriesMap.end()) {
+			uint j = iter->second;
 
-			entries[i].repeated = true;
-			entries[j].repeated = true;
+			package.entries[i].repeated = true;
+			package.entries[j].repeated = true;
 
 		} else {
-			entriesMap[CompressedEntry{entries[i].type, entries[i].group, entries[i].instance, entries[i].resource}] = i;
+			entriesMap[package.entries[i]] = i;
 		}
 	}
 
-	return Package(indexVersion, entries);
+	return package;
 }
 
 //put package in file
@@ -331,7 +325,7 @@ void putPackage(ofstream& newFile, ifstream& oldFile, Package& package, bool inP
 	omp_lock_t lock;
 	omp_init_lock(&lock);
 	
-	#pragma omp parallel for if(inParallel)
+	#pragma omp parallel for if (inParallel)
 	for(int i = 0; i < package.entries.size(); i++) {
 		omp_set_lock(&lock);
 		bytes content = read(oldFile, package.entries[i].location, package.entries[i].size);
@@ -389,7 +383,7 @@ void putPackage(ofstream& newFile, ifstream& oldFile, Package& package, bool inP
 		clstContent = bytes(package.entries.size() * 4 * 4);
 	}
 	
-	Entry clst = Entry(0xE86B1EEF, 0xE86B1EEF, 0x286B1F03, 0, newFile.tellp(), 0);
+	Entry clst = Entry{0xE86B1EEF, 0xE86B1EEF, 0x286B1F03, 0, (uint) newFile.tellp(), 0};
 
 	for(auto& entry: package.entries) {
 		if(entry.compressed) {
