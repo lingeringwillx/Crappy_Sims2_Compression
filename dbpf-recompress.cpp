@@ -75,16 +75,16 @@ int main(int argc, char *argv[]) {
 		return 0;
 	}
 	
-	vector<filesystem::directory_entry> files = vector<filesystem::directory_entry>();
+	auto files = vector<filesystem::directory_entry>();
 	
 	if(filesystem::is_regular_file(pathName)) {
-		int extensionLoc = pathName.find(".package");
-		if(extensionLoc == -1 || extensionLoc != pathName.size() - 8) {
+		auto file_entry = filesystem::directory_entry(pathName);
+		if(file_entry.path().extension() != ".package") {
 			cout << "Not a package file" << endl;
 			return 0;
 		}
 		
-		files.push_back(filesystem::directory_entry(pathName));
+		files.push_back(file_entry);
 		
 	} else if(filesystem::is_directory(pathName)) {
 		
@@ -137,6 +137,7 @@ int main(int argc, char *argv[]) {
 			
 		} else {
 			cout << displayPath << ": Failed to create temp file" << endl;
+			file.close();
 			continue;
 		}
 		
@@ -209,9 +210,10 @@ int main(int argc, char *argv[]) {
 			}
 			
 		} else {
+			cout << displayPath << ": New file is larger or equal in size to the old file" << endl;
+			
 			try {
 				filesystem::remove(fileName + ".new");
-				cout << displayPath << ": New file is larger or equal to the old file" << endl;
 				
 			} catch(filesystem::filesystem_error) {}
 			
