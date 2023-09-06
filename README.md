@@ -31,7 +31,7 @@ Alternatively, you can just drag and drop your file or folder to the executable 
 ### Resources
 [Niotso Wiki](http://wiki.niotso.org/RefPack): Generic information on the compression used by some old EA games.
 
-[Explantion of The LZ77/LZSS Compression](https://go-compression.github.io/algorithms/lzss/): QFS/Refpack is based on this compression.
+[Explanation of The LZ77/LZSS Compression](https://go-compression.github.io/algorithms/lzss/): QFS/Refpack is based on this compression.
 
 [Interactive LZ77 Encoder/Decoder](https://go-compression.github.io/interactive/lz/lz/)
 
@@ -41,7 +41,7 @@ Alternatively, you can just drag and drop your file or folder to the executable 
 
 [Rust implementation by @actionninja](https://github.com/actioninja/refpack-rs): Has a lot of information on the compression algorithm.
 
-[Old Mystical Implementation by BenK](http://www.moreawesomethanyou.com/smf/index.php/topic,8279.0.html): Old hard to read implementation based on zlib code. This is the strongest version of the compression out there and it's the same one used by The Compressorizer.
+[Old Mystical C Implementation by BenK](http://www.moreawesomethanyou.com/smf/index.php/topic,8279.0.html): Old hard to read implementation based on zlib code. This is the strongest version of the compression out there and it's the same one used by The Compressorizer.
 
 [Java implementation by @memo33](https://github.com/memo33/jDBPFX/blob/master/src/jdbpfx/util/DBPFPackager.java)
 
