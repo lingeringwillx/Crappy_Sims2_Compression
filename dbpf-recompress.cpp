@@ -165,14 +165,19 @@ int main(int argc, char *argv[]) {
 		}
 		
 		if(!validationFailed) {
+			auto equal = EqualFunction();
+			
 			for(int i = 0; i < oldPackage.entries.size(); i++) {
-				if(oldPackage.entries[i].type != newPackage.entries[i].type || oldPackage.entries[i].group != newPackage.entries[i].group || oldPackage.entries[i].instance != newPackage.entries[i].instance || oldPackage.entries[i].resource != newPackage.entries[i].resource) {
+				if(!(equal(oldPackage.entries[i], newPackage.entries[i]))) {
 					cout << displayPath << ": Types, groups, instances, or resources of entries not matching" << endl;
 					validationFailed = true;
 					break;
 				}
 				
-				if(decompressEntry(oldPackage.entries[i], read(file, oldPackage.entries[i].location, oldPackage.entries[i].size)) != decompressEntry(newPackage.entries[i], read(newFile, newPackage.entries[i].location, newPackage.entries[i].size))) {
+				bytes oldContent = read(file, oldPackage.entries[i].location, oldPackage.entries[i].size);
+				bytes newContent = read(newFile, newPackage.entries[i].location, newPackage.entries[i].size);
+				
+				if(decompressEntry(oldPackage.entries[i], oldContent) != decompressEntry(newPackage.entries[i], newContent)) {
 					cout << displayPath << ": Mismatch between old entry and new entry" << endl;
 					validationFailed = true;
 					break;

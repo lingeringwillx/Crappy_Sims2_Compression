@@ -6,8 +6,8 @@
 
 #include <fstream>
 #include <iostream>
-#include <map>
-#include <set>
+#include <unordered_map>
+#include <unordered_set>
 #include <string>
 #include <vector>
 
@@ -19,12 +19,12 @@ typedef vector<unsigned char> bytes;
 bytes read(ifstream& file, uint pos, uint size) {
 	bytes buf = bytes(size);
 	file.seekg(pos, ios::beg);
-	file.read(reinterpret_cast<char *>(buf.data()), size);
+	file.read(reinterpret_cast<char*>(buf.data()), size);
 	return buf;
 }
 
 void write(ofstream& file, bytes& buf) {
-	file.write(reinterpret_cast<char *>(buf.data()), buf.size());
+	file.write(reinterpret_cast<char*>(buf.data()), buf.size());
 }
 
 //convert 4 bytes from buf at pos to integer and increment pos (little endian)
@@ -89,41 +89,25 @@ struct CompressedEntry {
 	uint uncompressedSize;
 };
 
+struct HashFunction {
+	template<class EntryType>
+	size_t operator()(const EntryType& entry) const {
+		return entry.type ^ entry.group ^ entry.instance ^ entry.resource;
+	}
+};
+
+struct EqualFunction {
+	template<class EntryType>
+	bool operator()(const EntryType& entry, const EntryType& entry2) const {
+		return entry.type == entry2.type && entry.group == entry2.group && entry.instance == entry2.instance && entry.resource == entry2.resource;
+	}
+};
+
 //representing one package file
 struct Package {
 	int indexVersion;
 	vector<Entry> entries;
 };
-
-template<typename EntryType>
-bool compareTGIs(EntryType entry, EntryType entry2) {
-	if(entry.type != entry2.type) {
-		return entry.type < entry2.type;
-	}
-	
-	if(entry.group != entry2.group) {
-		return entry.group < entry2.group;
-	}
-	
-	if(entry.instance != entry2.instance) {
-		return entry.instance < entry2.instance;
-	}
-	
-	if(entry.resource != entry2.resource) {
-		return entry.resource < entry2.resource;
-	}
-	
-	return false;
-}
-
-//for use by sets and maps
-bool operator< (Entry entry, Entry entry2) {
-	return compareTGIs<Entry>(entry, entry2);
-}
-
-bool operator< (CompressedEntry entry, CompressedEntry entry2) {
-	return compareTGIs<CompressedEntry>(entry, entry2);
-}
 
 bytes compressEntry(Entry& entry, bytes& content, int level) {
 	if(!entry.compressed && !entry.repeated) {
@@ -240,8 +224,13 @@ Package getPackage(ifstream& file, string displayPath) {
 
 	//directory of compressed files
 	if(clstContent.size() > 0) {
-		set<CompressedEntry> compressedEntries;
-
+		unordered_set<CompressedEntry, HashFunction, EqualFunction> compressedEntries;
+		if(indexVersion == 2) {
+			compressedEntries.reserve(clstContent.size() / (4 * 5));
+		} else {
+			compressedEntries.reserve(clstContent.size() / (4 * 4));
+		}
+		
 		pos = 0;
 		while(pos < clstContent.size()) {
 			uint type = getInt32le(clstContent, pos);
@@ -271,7 +260,9 @@ Package getPackage(ifstream& file, string displayPath) {
 	}
 	
 	//check if entries with repeated TGIRs exist (we don't want to compress those)
-	map<Entry, uint> entriesMap;
+	unordered_map<Entry, uint, HashFunction, EqualFunction> entriesMap;
+	entriesMap.reserve(package.entries.size());
+	
 	for(uint i = 0; i < package.entries.size(); i++) {
 		auto iter = entriesMap.find(package.entries[i]);
 		if(iter != entriesMap.end()) {
