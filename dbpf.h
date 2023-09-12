@@ -89,6 +89,12 @@ struct CompressedEntry {
 	uint uncompressedSize;
 };
 
+//representing one package file
+struct Package {
+	int indexVersion;
+	vector<Entry> entries;
+};
+
 template<typename EntryType>
 bool compareTGIs(EntryType entry, EntryType entry2) {
 	if(entry.type != entry2.type) {
@@ -118,12 +124,6 @@ bool operator< (Entry entry, Entry entry2) {
 bool operator< (CompressedEntry entry, CompressedEntry entry2) {
 	return compareTGIs<CompressedEntry>(entry, entry2);
 }
-
-//representing one package file
-struct Package {
-	int indexVersion;
-	vector<Entry> entries;
-};
 
 bytes compressEntry(Entry& entry, bytes& content, int level) {
 	if(!entry.compressed && !entry.repeated) {
