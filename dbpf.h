@@ -89,6 +89,7 @@ struct CompressedEntry {
 	uint uncompressedSize;
 };
 
+//for use by sets and maps
 struct HashFunction {
 	template<class EntryType>
 	size_t operator()(const EntryType& entry) const {
