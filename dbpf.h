@@ -142,6 +142,20 @@ bytes decompressEntry(Entry& entry, bytes& content) {
 	return content;
 }
 
+bytes recompressEntry(Entry& entry, bytes& content, int level) {
+	bool wasCompressed = entry.compressed;
+	bytes decompressedContent = decompressEntry(entry, content);
+	bytes compressedContent = compressEntry(entry, decompressedContent, level);
+	
+	if(compressedContent.size() < content.size()) {
+		return compressedContent;
+	} else {
+		//decompression/compression failed, or new compressed entry is larger or equal to old compressed entry
+		entry.compressed = wasCompressed;
+		return content;
+	}
+}
+
 //get package infromation from file
 Package getPackage(ifstream& file, string displayPath) {
 	file.seekg(0, ios::end);
@@ -283,17 +297,10 @@ Package getPackage(ifstream& file, string displayPath) {
 //put package in file
 void putPackage(ofstream& newFile, ifstream& oldFile, Package& package, bool inParallel, bool decompress, bool recompress, uint level) {
 	//write header
-	uint bufferSize = 96;
-	bytes buffer = bytes(bufferSize);
+	bytes buffer = bytes(96);
 	uint pos = 0;
-
-	buffer[0] = 'D';
-	buffer[1] = 'B';
-	buffer[2] = 'P';
-	buffer[3] = 'F';
-
-	pos = 4;
-
+	
+	putInt32le(buffer, pos, 0x46504244);
 	putInt32le(buffer, pos, 1);
 	putInt32le(buffer, pos, 1);
 	putInt32le(buffer, pos, 0);
@@ -322,42 +329,28 @@ void putPackage(ofstream& newFile, ifstream& oldFile, Package& package, bool inP
 		bytes content = read(oldFile, package.entries[i].location, package.entries[i].size);
 		omp_unset_lock(&lock);
 		
-		bool wasCompressed = package.entries[i].compressed;
-		
 		bytes newContent;
-		if(decompress) {
-			content = decompressEntry(package.entries[i], content);
 		
+		if(decompress) {
+			newContent = decompressEntry(package.entries[i], content);
 		} else if(recompress) {
-			bytes decompressedContent = decompressEntry(package.entries[i], content);
-			newContent = compressEntry(package.entries[i], decompressedContent, level);
-			
-			//only use the new compressed entry if it's smaller than the old compressed entry
-			if(newContent.size() < content.size()) {
-				content = newContent;
-				
-			//otherwise use the old entry
-			} else {
-				package.entries[i].compressed = wasCompressed;
-			}
-			
+			newContent = recompressEntry(package.entries[i], content, level);
 		} else {
 			newContent = compressEntry(package.entries[i], content, level);
-			content = newContent;
 		}
 		
-		package.entries[i].size = content.size();
+		package.entries[i].size = newContent.size();
 		
 		//we only care about the uncompressed size if the file is compressed
 		if(package.entries[i].compressed) {
 			uint tempPos = 6;
-			package.entries[i].uncompressedSize = getInt24bg(content, tempPos);
+			package.entries[i].uncompressedSize = getInt24bg(newContent, tempPos);
 		}
 		
 		omp_set_lock(&lock);
 		
 		package.entries[i].location = newFile.tellp();
-		write(newFile, content);
+		write(newFile, newContent);
 		
 		omp_unset_lock(&lock);
 	}
@@ -400,14 +393,13 @@ void putPackage(ofstream& newFile, ifstream& oldFile, Package& package, bool inP
 
 	//write the index
 	uint indexStart = newFile.tellp();
-
+	
 	if(package.indexVersion == 2) {
-		bufferSize = package.entries.size() * 4 * 6;
+		buffer = bytes(package.entries.size() * 4 * 6);
 	} else {
-		bufferSize = package.entries.size() * 4 * 5;
+		buffer = bytes(package.entries.size() * 4 * 5);
 	}
 	
-	buffer = bytes(bufferSize);
 	pos = 0;
 	
 	for(auto& entry: package.entries) {
