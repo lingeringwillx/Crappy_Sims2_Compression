@@ -80,38 +80,6 @@ struct Entry {
 	bool repeated = false; //appears twice in same package
 };
 
-bytes compressEntry(Entry& entry, bytes& content, int level) {
-	if(!entry.compressed && !entry.repeated) {
-		bytes newContent = bytes((content.size() - 1)); //must be smaller than the original, otherwise there is no benefit
-		int length = try_compress(&content[0], content.size(), &newContent[0], level);
-		
-		if(length > 0) {
-			entry.compressed = true;
-			return bytes(newContent.begin(), newContent.begin() + length);
-		}
-	}
-	
-	return content;
-}
-
-bytes decompressEntry(Entry& entry, bytes& content) {
-	if(entry.compressed) {
-		uint tempPos = 6;
-		bytes newContent = bytes((getInt24bg(content, tempPos))); //uncompressed
-		bool success = decompress(&content[0], content.size(), &newContent[0], newContent.size(), false);
-		
-		if(success) {
-			entry.compressed = false;
-			return newContent;
-			
-		} else {
-			cout << "Failed to decompress entry" << endl;
-		}
-	}
-	
-	return content;
-}
-
 //for holding info from the DIR/CLST
 struct CompressedEntry {
 	uint type;
@@ -156,6 +124,38 @@ struct Package {
 	int indexVersion;
 	vector<Entry> entries;
 };
+
+bytes compressEntry(Entry& entry, bytes& content, int level) {
+	if(!entry.compressed && !entry.repeated) {
+		bytes newContent = bytes((content.size() - 1)); //must be smaller than the original, otherwise there is no benefit
+		int length = try_compress(&content[0], content.size(), &newContent[0], level);
+		
+		if(length > 0) {
+			entry.compressed = true;
+			return bytes(newContent.begin(), newContent.begin() + length);
+		}
+	}
+	
+	return content;
+}
+
+bytes decompressEntry(Entry& entry, bytes& content) {
+	if(entry.compressed) {
+		uint tempPos = 6;
+		bytes newContent = bytes((getInt24bg(content, tempPos))); //uncompressed
+		bool success = decompress(&content[0], content.size(), &newContent[0], newContent.size(), false);
+		
+		if(success) {
+			entry.compressed = false;
+			return newContent;
+			
+		} else {
+			cout << "Failed to decompress entry" << endl;
+		}
+	}
+	
+	return content;
+}
 
 //get package infromation from file
 Package getPackage(ifstream& file, string displayPath) {
@@ -321,7 +321,6 @@ void putPackage(ofstream& newFile, ifstream& oldFile, Package& package, bool inP
 	write(newFile, buffer);
 
 	//compress and write entries, and save the location and size for the index
-	
 	omp_lock_t lock;
 	omp_init_lock(&lock);
 	
