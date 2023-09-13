@@ -89,6 +89,12 @@ struct CompressedEntry {
 	uint uncompressedSize;
 };
 
+//representing one package file
+struct Package {
+	int indexVersion;
+	vector<Entry> entries;
+};
+
 //for use by sets and maps
 struct hashFunction {
 	template<class EntryType>
@@ -102,12 +108,6 @@ struct equalFunction {
 	bool operator()(const EntryType& entry, const EntryType& entry2) const {
 		return entry.type == entry2.type && entry.group == entry2.group && entry.instance == entry2.instance && entry.resource == entry2.resource;
 	}
-};
-
-//representing one package file
-struct Package {
-	int indexVersion;
-	vector<Entry> entries;
 };
 
 bytes compressEntry(Entry& entry, bytes& content, int level) {
