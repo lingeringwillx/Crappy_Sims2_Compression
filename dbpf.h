@@ -90,14 +90,14 @@ struct CompressedEntry {
 };
 
 //for use by sets and maps
-struct HashFunction {
+struct hashFunction {
 	template<class EntryType>
 	size_t operator()(const EntryType& entry) const {
 		return entry.type ^ entry.group ^ entry.instance ^ entry.resource;
 	}
 };
 
-struct EqualFunction {
+struct equalFunction {
 	template<class EntryType>
 	bool operator()(const EntryType& entry, const EntryType& entry2) const {
 		return entry.type == entry2.type && entry.group == entry2.group && entry.instance == entry2.instance && entry.resource == entry2.resource;
@@ -239,7 +239,7 @@ Package getPackage(ifstream& file, string displayPath) {
 
 	//directory of compressed files
 	if(clstContent.size() > 0) {
-		unordered_set<CompressedEntry, HashFunction, EqualFunction> compressedEntries;
+		unordered_set<CompressedEntry, hashFunction, equalFunction> compressedEntries;
 		if(indexVersion == 2) {
 			compressedEntries.reserve(clstContent.size() / (4 * 5));
 		} else {
@@ -275,7 +275,7 @@ Package getPackage(ifstream& file, string displayPath) {
 	}
 	
 	//check if entries with repeated TGIRs exist (we don't want to compress those)
-	unordered_map<Entry, uint, HashFunction, EqualFunction> entriesMap;
+	unordered_map<Entry, uint, hashFunction, equalFunction> entriesMap;
 	entriesMap.reserve(package.entries.size());
 	
 	for(uint i = 0; i < package.entries.size(); i++) {

@@ -165,7 +165,7 @@ int main(int argc, char *argv[]) {
 		}
 		
 		if(!validationFailed) {
-			auto equal = EqualFunction();
+			auto equal = equalFunction();
 			
 			for(int i = 0; i < oldPackage.entries.size(); i++) {
 				if(!(equal(oldPackage.entries[i], newPackage.entries[i]))) {
