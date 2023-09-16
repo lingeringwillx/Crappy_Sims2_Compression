@@ -226,7 +226,7 @@ int main(int argc, char *argv[]) {
 		if(!quiet) {
 			cout << displayPath << " " << fixed << setprecision(2);
 			
-			if(current_size >= 1e3) {
+			if(current_size >= 1000) {
 				cout << current_size / 1024.0 << " MB";
 			} else {
 				cout << current_size << " KB";
@@ -234,7 +234,7 @@ int main(int argc, char *argv[]) {
 			
 			cout << " -> ";
 			
-			if(new_size >= 1e3) {
+			if(new_size >= 1000) {
 				cout << new_size / 1024.0 << " MB";
 			} else {
 				cout << new_size << " KB";
