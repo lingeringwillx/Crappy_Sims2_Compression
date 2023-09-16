@@ -9,6 +9,11 @@
 
 using namespace std;
 
+void tryDelete(string fileName) {
+	try { filesystem::remove(fileName); }
+	catch(filesystem::filesystem_error) {}
+}
+
 int main(int argc, char *argv[]) {
 	if(argc == 1) {
 		cout << "No argument provided" << endl;
@@ -102,7 +107,9 @@ int main(int argc, char *argv[]) {
 	for(auto& dir_entry: files) {
 		//open file
 		string fileName = dir_entry.path().string();
-		float current_size = dir_entry.file_size() / 1024;
+		string tempFileName = fileName + ".new";
+		
+		float current_size = dir_entry.file_size() / 1024.0;
 		
 		string displayPath; //for cout
 		if(filesystem::is_regular_file(pathName)) {
@@ -111,7 +118,7 @@ int main(int argc, char *argv[]) {
 			displayPath = filesystem::relative(fileName, pathName).string();
 		}
 		
-		ifstream file = ifstream(fileName, ios::binary);
+		fstream file = fstream(fileName, ios::in | ios::binary);
 		
 		if(!file.is_open()) {
 			cout << displayPath << ": Failed to open file" << endl;
@@ -119,9 +126,7 @@ int main(int argc, char *argv[]) {
 		}
 		
 		//get package
-		file.seekg(0, ios::beg);
-
-		Package package = getPackage(file, displayPath);
+		dbpf::Package package = dbpf::getPackage(file, displayPath);
 		
 		//error unpacking package
 		if(package.indexVersion == -1) {
@@ -130,9 +135,9 @@ int main(int argc, char *argv[]) {
 		}
 		
 		//compress entries, pack package, and write to temp file
-		ofstream tempFile = ofstream(fileName + ".new", ios::binary);
+		fstream tempFile = fstream(tempFileName, ios::out | ios::binary);
 		if(tempFile.is_open()) {
-			putPackage(tempFile, file, package, inParallel, decompress, recompress, level);
+			dbpf::putPackage(tempFile, file, package, inParallel, decompress, recompress, level);
 			tempFile.close();
 			
 		} else {
@@ -142,17 +147,20 @@ int main(int argc, char *argv[]) {
 		}
 		
 		//validate new file
-		Package oldPackage = getPackage(file, displayPath);
-		ifstream newFile = ifstream(fileName + ".new", ios::binary);
+		dbpf::Package oldPackage = dbpf::getPackage(file, displayPath);
 		
-		bool validationFailed = false;
+		tempFile = fstream(tempFileName, ios::in | ios::binary);
 		
-		if(!newFile.is_open()) {
+		if(!tempFile.is_open()) {
 			cout << displayPath << ": Could not open new package file" << endl;
-			validationFailed = true;
+			file.close();
+			tryDelete(tempFileName);
+			continue;
 		}
 		
-		Package newPackage = getPackage(newFile, displayPath + ".new");
+		dbpf::Package newPackage = dbpf::getPackage(tempFile, displayPath + ".new");
+		
+		bool validationFailed = false;
 		
 		if(!validationFailed && newPackage.indexVersion == -1) {
 			cout << displayPath << ": Failed to load new package" << endl;
@@ -165,19 +173,20 @@ int main(int argc, char *argv[]) {
 		}
 		
 		if(!validationFailed) {
-			auto equal = equalFunction();
-			
 			for(int i = 0; i < oldPackage.entries.size(); i++) {
-				if(!(equal(oldPackage.entries[i], newPackage.entries[i]))) {
+				auto& oldEntry = oldPackage.entries[i];
+				auto& newEntry = newPackage.entries[i];
+				
+				if(oldEntry.type != newEntry.type || oldEntry.group != newEntry.group || oldEntry.instance != newEntry.instance || oldEntry.resource != newEntry.resource) {
 					cout << displayPath << ": Types, groups, instances, or resources of entries not matching" << endl;
 					validationFailed = true;
 					break;
 				}
 				
-				bytes oldContent = read(file, oldPackage.entries[i].location, oldPackage.entries[i].size);
-				bytes newContent = read(newFile, newPackage.entries[i].location, newPackage.entries[i].size);
+				bytes oldContent = dbpf::readFile(file, oldEntry.location, oldEntry.size);
+				bytes newContent = dbpf::readFile(tempFile, newEntry.location, newEntry.size);
 				
-				if(decompressEntry(oldPackage.entries[i], oldContent) != decompressEntry(newPackage.entries[i], newContent)) {
+				if(dbpf::decompressEntry(oldEntry, oldContent) != dbpf::decompressEntry(newEntry, newContent)) {
 					cout << displayPath << ": Mismatch between old entry and new entry" << endl;
 					validationFailed = true;
 					break;
@@ -186,53 +195,39 @@ int main(int argc, char *argv[]) {
 		}
 		
 		file.close();
-		newFile.close();
+		tempFile.close();
 		
 		if(validationFailed) {
-			try {
-				filesystem::remove(fileName + ".new");
-				
-			} catch(filesystem::filesystem_error) {}
-			
+			tryDelete(tempFileName);
 			continue;
 		}
 		
+		float new_size = filesystem::file_size(tempFileName) / 1024.0;
+		
 		//overwrite old file
-		if(decompress || filesystem::file_size(fileName + ".new") < filesystem::file_size(fileName)) {
+		if(decompress || new_size < current_size) {
 			try {
-				filesystem::rename(fileName + ".new", fileName);
+				filesystem::rename(tempFileName, fileName);
 			}
 			
 			catch(filesystem::filesystem_error) {
 				cout << displayPath << ": Failed to overwrite file" << endl;
-				
-				try {
-					filesystem::remove(fileName + ".new");
-					
-				} catch(filesystem::filesystem_error) {}
-				
+				tryDelete(tempFileName);
 				continue;
 			}
 			
 		} else {
-			cout << displayPath << ": New file is larger or equal in size to the old file" << endl;
-			
-			try {
-				filesystem::remove(fileName + ".new");
-				
-			} catch(filesystem::filesystem_error) {}
-			
-			continue;
+			tryDelete(tempFileName);
 		}
 		
-		//output file size to console
-		float new_size = filesystem::file_size(fileName) / 1024;
+		new_size = filesystem::file_size(fileName) / 1024.0;
 		
+		//output file size to console
 		if(!quiet) {
 			cout << displayPath << " " << fixed << setprecision(2);
 			
 			if(current_size >= 1e3) {
-				cout << current_size / 1024 << " MB";
+				cout << current_size / 1024.0 << " MB";
 			} else {
 				cout << current_size << " KB";
 			}
@@ -240,7 +235,7 @@ int main(int argc, char *argv[]) {
 			cout << " -> ";
 			
 			if(new_size >= 1e3) {
-				cout << new_size / 1024 << " MB";
+				cout << new_size / 1024.0 << " MB";
 			} else {
 				cout << new_size << " KB";
 			}
