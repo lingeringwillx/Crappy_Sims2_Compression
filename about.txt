@@ -4,4 +4,4 @@ The main destinction between QFS and LZSS is that the compression has it's own u
 
 The algorithm doesn't employ any other common compression method (such as Huffman Coding) besides LZSS encoding of repeated patterns.
 
-The longer length and offset capacity of the compression increases CPU and memory usage, and it doesn't seem to yield a significant improvement in the compressed size, so I don't know why EA didn't just use DEFLATE. I guess they waited until the patent for DEFLATE expired.
+The longer length and offset capacity of the compression slows down the compression, and it doesn't seem to yield a significant improvement in the compressed size, so I don't know why EA didn't just use DEFLATE. I guess they waited until the patent for DEFLATE expired.
