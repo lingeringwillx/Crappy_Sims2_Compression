@@ -37,7 +37,7 @@ Alternatively, you can just drag and drop your file or folder to the executable 
 
 [DBPF Package Information](https://modthesims.info/wiki.php?title=DBPF): Contains information on the game's .package format.
 
-[ModTheSims](https://modthesims.info/wiki.php?title=DBPF/Compression): Likely has some subtle mistakes here and there but still a good resource.
+[ModTheSims](https://modthesims.info/wiki.php?title=DBPF/Compression): Information about the compression used by the game, likely has some subtle mistakes here and there but still a good resource.
 
 [Rust implementation by @actionninja](https://github.com/actioninja/refpack-rs): Has a lot of information on the compression algorithm.
 
