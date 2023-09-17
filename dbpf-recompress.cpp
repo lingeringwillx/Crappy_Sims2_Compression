@@ -126,7 +126,8 @@ int main(int argc, char *argv[]) {
 		}
 		
 		//get package
-		dbpf::Package package = dbpf::getPackage(file, displayPath);
+		dbpf::Package oldPackage = dbpf::getPackage(file, displayPath);
+		dbpf::Package package = dbpf::Package{oldPackage.indexVersion, oldPackage.entries};
 		
 		//error unpacking package
 		if(package.indexVersion == -1) {
@@ -135,10 +136,10 @@ int main(int argc, char *argv[]) {
 		}
 		
 		//compress entries, pack package, and write to temp file
-		fstream tempFile = fstream(tempFileName, ios::out | ios::binary);
+		fstream tempFile = fstream(tempFileName, ios::in | ios::out | ios::trunc | ios::binary);
+		
 		if(tempFile.is_open()) {
 			dbpf::putPackage(tempFile, file, package, inParallel, decompress, recompress, level);
-			tempFile.close();
 			
 		} else {
 			cout << displayPath << ": Failed to create temp file" << endl;
@@ -147,17 +148,7 @@ int main(int argc, char *argv[]) {
 		}
 		
 		//validate new file
-		dbpf::Package oldPackage = dbpf::getPackage(file, displayPath);
-		
-		tempFile = fstream(tempFileName, ios::in | ios::binary);
-		
-		if(!tempFile.is_open()) {
-			cout << displayPath << ": Could not open new package file" << endl;
-			file.close();
-			tryDelete(tempFileName);
-			continue;
-		}
-		
+		tempFile.seekg(0, ios::beg);
 		dbpf::Package newPackage = dbpf::getPackage(tempFile, displayPath + ".new");
 		
 		bool validationFailed = false;
