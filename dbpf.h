@@ -31,42 +31,27 @@ namespace dbpf {
 
 	//convert 4 bytes from buf at pos to integer and increment pos (little endian)
 	uint getInt32le(bytes& buf, uint& pos) {
-		uint n = buf[pos];
-		n += buf[pos + 1] << 8;
-		n += buf[pos + 2] << 16;
-		n += buf[pos + 3] << 24;
-
-		pos += 4;
-		return n;
+		return ((uint) buf[pos++]) + ((uint) buf[pos++] << 8) + ((uint) buf[pos++] << 16) + ((uint) buf[pos++] << 24);
 	}
 
 	//put integer in buf at pos and increment pos (little endian)
 	void putInt32le(bytes& buf, uint& pos, uint n) {
-		buf[pos] = n;
-		buf[pos + 1] = n >> 8;
-		buf[pos + 2] = n >> 16;
-		buf[pos + 3] = n >> 24;
-
-		pos += 4;
+		buf[pos++] = n;
+		buf[pos++] = n >> 8;
+		buf[pos++] = n >> 16;
+		buf[pos++] = n >> 24;
 	}
 
 	//convert 3 bytes from buf at pos to integer and increment pos (big endian)
 	uint getInt24bg(bytes& buf, uint& pos) {
-		uint n = buf[pos] << 16;
-		n += buf[pos + 1] << 8;
-		n += buf[pos + 2];
-
-		pos += 3;
-		return n;
+		return ((uint) buf[pos++] << 16) + ((uint) buf[pos++] << 8) + ((uint) buf[pos++]);
 	}
 
 	//put integer in buf at pos and increment pos (big endian)
 	void putInt24bg(bytes& buf, uint& pos, uint n) {
-		buf[pos] = n >> 16;
-		buf[pos + 1] = n >> 8;
-		buf[pos + 2] = n;
-
-		pos += 3;
+		buf[pos++] = n >> 16;
+		buf[pos++] = n >> 8;
+		buf[pos++] = n;
 	}
 
 	//representing one entry (file) inside the package
