@@ -16,7 +16,7 @@ void tryDelete(string fileName) {
 
 int main(int argc, char *argv[]) {
 	if(argc == 1) {
-		cout << "No argument provided" << endl;
+		cout << "No arguments provided" << endl;
 		return 0;
 	}
 	
