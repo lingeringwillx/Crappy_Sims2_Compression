@@ -8,9 +8,10 @@ using namespace std;
 typedef unsigned int uint;
 typedef vector<unsigned char> bytes;
 
-void copyBytes(bytes& src, uint srcPos, bytes& dst, uint dstPos, uint length) {
+//copy length bytes from src at srcPos to dst at dstPos and increment srcPos and dstPos
+void copyBytes(bytes& src, uint& srcPos, bytes& dst, uint& dstPos, uint length) {
 	for(uint i = 0; i < length; i++) {
-		dst[dstPos + i] = src[srcPos + i];
+		dst[dstPos++] = src[srcPos++];
 	}
 }
 
@@ -137,12 +138,10 @@ bytes compress(bytes& src) {
 			}
 			
 			// 111ppppp
-			dst[dstPos++] = 0b11100000 + (plain >> 2) - 1;
+			dst[dstPos++] = 0b11100000 + ((plain - 4) >> 2);
 			
 			//add the characters that need to be copied
 			copyBytes(src, srcPos, dst, dstPos, plain);
-			srcPos += plain;
-			dstPos += plain;
 			
 			plain = matches[i].location - srcPos;
 		}
@@ -151,32 +150,31 @@ bytes compress(bytes& src) {
 		uint offset = matches[i].offset - 1; //subtraction is a part of the transformation for the offset, I think...
 		
 		//apply weird QFS transformations
-		
-		// 0oocccpp oooooooo
 		if(nCopy <= 10 && offset < 1024) {
 			if(dstPos + plain + 2 > dst.size())  {
 				return bytes();
 			}
 			
+			// 0oocccpp oooooooo
 			dst[dstPos++] = ((offset >> 3) & 0b01100000) + ((nCopy - 3) << 2) + plain;
 			dst[dstPos++] = offset;
 			
-		// 10cccccc ppoooooo oooooooo
 		} else if(nCopy <= 67 && offset < 16384) {
 			if(dstPos + plain + 3 > dst.size())  {
 				return bytes();
 			}
 			
+			// 10cccccc ppoooooo oooooooo
 			dst[dstPos++] = 0b10000000 + (nCopy - 4);
 			dst[dstPos++] = (plain << 6) + (offset >> 8);
 			dst[dstPos++] = offset;
-						
-		// 110occpp oooooooo oooooooo cccccccc
+			
 		} else if(nCopy <= 1028 && offset < 131072) {
 			if(dstPos + plain + 4 > dst.size())  {
 				return bytes();
 			}
 			
+			// 110occpp oooooooo oooooooo cccccccc
 			dst[dstPos++] = 0b11000000 + ((offset >> 12) & 0b00010000) + (((nCopy - 5) >> 6) & 0b00001100) + plain;
 			dst[dstPos++] = offset >> 8;
 			dst[dstPos++] = offset;
@@ -184,8 +182,7 @@ bytes compress(bytes& src) {
 		}
 		
 		copyBytes(src, srcPos, dst, dstPos, plain);
-		srcPos += plain + nCopy;
-		dstPos += plain;
+		srcPos += nCopy;
 	}
 	
 	//copy the remaining bytes at the end
@@ -202,11 +199,9 @@ bytes compress(bytes& src) {
 		}
 		
 		// 111ppppp
-		dst[dstPos++] = 0b11100000 + (plain >> 2) - 1;
+		dst[dstPos++] = 0b11100000 + ((plain - 4) >> 2);
 		
 		copyBytes(src, srcPos, dst, dstPos, plain);
-		srcPos += plain;
-		dstPos += plain;
 		
 		plain = src.size() - srcPos;
 	}
@@ -220,8 +215,6 @@ bytes compress(bytes& src) {
 		dst[dstPos++] = 0b11111100 + plain;
 		
 		copyBytes(src, srcPos, dst, dstPos, plain);
-		srcPos += plain;
-		dstPos += plain;
 	}
 	
 	//make QFS compression header
@@ -305,7 +298,7 @@ bytes decompress(bytes& src) {
 
 		} else {
 			// 111111pp
-			plain = b0 - 0b11111100; //0-3
+			plain = b0 & 0b00000011; //0-3
 			nCopy = 0;
 			offset = 0;
 		}
@@ -315,12 +308,10 @@ bytes decompress(bytes& src) {
 		}
 		
 		copyBytes(src, srcPos, dst, dstPos, plain);
-		srcPos += plain;
-		dstPos += plain;
 		
 		//copy bytes from an earlier location in the decompressed output
-		copyBytes(dst, dstPos - offset, dst, dstPos, nCopy);
-		dstPos += nCopy;
+		uint fromOffset = dstPos - offset;
+		copyBytes(dst, fromOffset, dst, dstPos, nCopy);
 	}
 	
 	return dst;
