@@ -56,12 +56,12 @@ class Table {
 		}
 		
 		Match getMatch(bytes& src, uint pos) {
-			uint lastLoc = getLast(src, pos);
-			if(lastLoc == -1) {
+			uint lastPos = getLast(src, pos);
+			if(lastPos == -1) {
 				return Match{0, 0, 0};
 			}
 			
-			uint offset = pos - lastLoc;
+			uint offset = pos - lastPos;
 			
 			if(offset > 131072) {
 				return Match{0, 0, 0};
@@ -69,7 +69,7 @@ class Table {
 			
 			uint length = 3;
 			for(uint i = 3; i < src.size() - pos; i++) {
-				if(src[lastLoc + i] == src[pos + i] && length < 1028) {
+				if(src[lastPos + i] == src[pos + i] && length < 1028) {
 					length++;
 				} else {
 					break;
@@ -84,6 +84,9 @@ class Table {
 		}
 };
 
+//compresses src, returns an empty vector if compression fails
+//it will fail if the compressed output >= decompressed input since it's better to store these assets uncompressed
+///this typically happens with very small assets
 bytes compress(bytes& src) {
 	//finding patterns
 	Table table = Table();
@@ -234,6 +237,8 @@ bytes compress(bytes& src) {
 	return bytes(dst.begin(), dst.begin() + dstPos);
 }
 
+//decompresses src, returns an empty vector if decompression fails
+//it should only fail on broken compressed assets
 bytes decompress(bytes& src) {
 	uint srcPos = 6;
 	uint uncompressedSize = ((uint) src[srcPos++] << 16) + ((uint) src[srcPos++] << 8) + ((uint) src[srcPos++]);
