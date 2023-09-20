@@ -56,12 +56,12 @@ class Table {
 		}
 		
 		Match getMatch(bytes& src, uint pos) {
-			uint lastPos = getLast(src, pos);
-			if(lastPos == -1) {
+			uint lastLoc = getLast(src, pos);
+			if(lastLoc == -1) {
 				return Match{0, 0, 0};
 			}
 			
-			uint offset = pos - lastPos;
+			uint offset = pos - lastLoc;
 			
 			if(offset > 131072) {
 				return Match{0, 0, 0};
@@ -69,7 +69,7 @@ class Table {
 			
 			uint length = 3;
 			for(uint i = 3; i < src.size() - pos; i++) {
-				if(src[lastPos + i] == src[pos + i] && length < 1028) {
+				if(src[lastLoc + i] == src[pos + i] && length < 1028) {
 					length++;
 				} else {
 					break;
