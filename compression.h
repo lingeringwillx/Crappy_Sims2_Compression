@@ -22,7 +22,7 @@ struct Match {
 	uint offset;
 };
 
-//hashtable where the indices are 3 bytes sequences from src converted to integers, and the values are the last position where the 3 bytes sequence could be found
+//hashtable where the keys are 3 bytes sequences from src converted to integers, and the values are the last position where the 3 bytes sequence could be found
 class Table {
 	private:
 		unordered_map<uint, uint> map;
@@ -40,6 +40,7 @@ class Table {
 			}
 		}
 		
+		//find the last match
 		Match getMatch(bytes &src, uint pos) {
 			auto iter = map.find(getHash(src, pos));
 			
