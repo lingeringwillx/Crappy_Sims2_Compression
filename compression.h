@@ -84,7 +84,6 @@ bytes compress(bytes& src) {
 			matches.push_back(match);
 			i += match.length;
 		} else {
-			
 			i++;
 		}
 		
