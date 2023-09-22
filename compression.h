@@ -1,6 +1,4 @@
 //(Unused) This is a simple implementation of the QFS compression
-
-#include <iostream>
 #include <unordered_map>
 #include <vector>
 
