@@ -1,6 +1,7 @@
-//(Unused) This is a simple implementation of the QFS compression (perhaps the simplest out there)
+//(Unused) This is a simple implementation of the QFS compression
 
-//#include <iostream>
+#include <iostream>
+#include <unordered_map>
 #include <vector>
 
 using namespace std;
@@ -9,6 +10,7 @@ typedef unsigned int uint;
 typedef vector<unsigned char> bytes;
 
 //copy length bytes from src at srcPos to dst at dstPos and increment srcPos and dstPos
+//copying one byte at a time is REQUIRED in some cases, otherwise decompression will not work
 void copyBytes(bytes& src, uint& srcPos, bytes& dst, uint& dstPos, uint length) {
 	for(uint i = 0; i < length; i++) {
 		dst[dstPos++] = src[srcPos++];
@@ -24,43 +26,29 @@ struct Match {
 //hashtable where the indices are 3 bytes sequences from src converted to integers, and the values are the last position where the 3 bytes sequence could be found
 class Table {
 	private:
+		unordered_map<uint, uint> map;
 		uint lastPos = 0;
-		vector<uint> array;
 		
-		uint tableHash(bytes& src, uint pos) {
-			return ((uint) src[pos++] << 16) + ((uint) src[pos++] << 8) + ((uint) src[pos++]);
-		}
-		
-		void add(bytes& src, uint pos) {
-			array[tableHash(src, pos)] = pos;
-		}
-		
-		uint getLast(bytes& src, uint pos) {
-			return array[tableHash(src, pos)];
+		uint getHash(bytes& src, uint pos) {
+			return ((uint) src[pos++] << 16) + ((uint) src[pos++] << 8) + src[pos];
 		}
 		
 	public:
-		Table() {
-			//-1 is the default value used when the pattern is yet to be found (cast to 0xFFFFFFFF)
-			array = vector<uint>(16777216, -1);
-		}
-		
-		//add all bytes between [lastPos, pos) to table
-		void addTo(bytes& src, uint pos) {
-			uint i = 0;
-			for(i = lastPos; i < pos; i++) {
-				add(src, lastPos);
+		//add all bytes between [lastPos, pos) to the table
+		void addTo(bytes &src, uint pos) {
+			for(lastPos; lastPos < pos; lastPos++) {
+				map[getHash(src, lastPos)] = lastPos;
 			}
-			
-			lastPos = pos;
 		}
 		
-		Match getMatch(bytes& src, uint pos) {
-			uint lastLoc = getLast(src, pos);
-			if(lastLoc == -1) {
+		Match getMatch(bytes &src, uint pos) {
+			auto iter = map.find(getHash(src, pos));
+			
+			if(iter == map.end()) {
 				return Match{0, 0, 0};
 			}
 			
+			uint lastLoc = iter->second;
 			uint offset = pos - lastLoc;
 			
 			if(offset > 131072) {
@@ -68,12 +56,8 @@ class Table {
 			}
 			
 			uint length = 3;
-			for(uint i = 3; i < src.size() - pos; i++) {
-				if(src[lastLoc + i] == src[pos + i] && length < 1028) {
-					length++;
-				} else {
-					break;
-				}
+			while(length < src.size() - pos && src[lastLoc + length] == src[pos + length] && length < 1028) {
+				length++;
 			}
 			
 			if(offset <= 1024 || (offset <= 16384 && length >= 4) || length >= 5) {
@@ -86,7 +70,7 @@ class Table {
 
 //compresses src, returns an empty vector if compression fails
 //it will fail if the compressed output >= decompressed input since it's better to store these assets uncompressed
-///this typically happens with very small assets
+//this typically happens with very small assets
 bytes compress(bytes& src) {
 	//finding patterns
 	Table table = Table();
@@ -100,6 +84,7 @@ bytes compress(bytes& src) {
 			matches.push_back(match);
 			i += match.length;
 		} else {
+			
 			i++;
 		}
 		
