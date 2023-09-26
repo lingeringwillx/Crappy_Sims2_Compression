@@ -23,12 +23,13 @@ Alternatively, you can just drag and drop your file or folder to the executable 
 | Flag | Name | Description
 | - | - | - |
 | `-l` | Compression Level | Can be `-l1`, `-l3`, `-l5`, `-l7`, or `-l9`. Higher values mean stronger but slower compression |
-| `-r` | Recompress | Decompress the file then compress it again, can provide a bigger compression if the older compression is weak, but will slow down the compression (Note: This is always enabled in the release version) |
-| `-p` | Parallel | Use all cores for compresson, will speed up the compression but will use 100% of CPU during compression (Note: This is always enabled in the release version) |
+| `-r` | Recompress | Decompress the file then compress it again, can provide a bigger compression if the older compression is weak, but will slow down the compression (Note: This is always enabled in the gui version) |
+| `-p` | Parallel | Use all cores for compresson, will speed up the compression but will use 100% of CPU during compression (Note: This is always enabled in the gui version) |
 | `-d` | Decompress | Decompress without compression |
 | `-q` | Quiet | Don't output anything to the console except for errors |
 
-### Resources
+#### Information
+
 [Niotso Wiki](http://wiki.niotso.org/RefPack): Generic information on the compression used by some old EA games.
 
 [Explanation of The LZ77/LZSS Compression](https://go-compression.github.io/algorithms/lzss/): QFS/Refpack is based on this compression.
@@ -39,12 +40,24 @@ Alternatively, you can just drag and drop your file or folder to the executable 
 
 [ModTheSims](https://modthesims.info/wiki.php?title=DBPF/Compression): Information about the compression used by the game, likely has some subtle mistakes here and there but still a good resource.
 
-[Rust implementation by @actionninja](https://github.com/actioninja/refpack-rs): Has a lot of information on the compression algorithm.
+[Explanation of zlib](https://www.euccas.me/zlib/): The Compressorizer's code is heavily based on this library.
+
+[How to Compress](https://github.com/lingeringwillx/CrappySims2Compression/blob/main/how-to-compress.md): I tried to explain the compression algorithm here.
+
+#### Implementations
 
 [Old Mystical C Implementation by BenK](http://www.moreawesomethanyou.com/smf/index.php/topic,8279.0.html): Old hard to read implementation based on zlib code. This is the strongest version of the compression out there and it's the same one used by The Compressorizer.
 
-[Java implementation by @memo33](https://github.com/memo33/jDBPFX/blob/master/src/jdbpfx/util/DBPFPackager.java)
-
 [C# implementation by @0xC0000054](https://github.com/0xC0000054/DBPFSharp/blob/main/src/DBPFSharp/QfsCompression.cs)
 
-[Explanation of zlib](https://www.euccas.me/zlib/): The Compressorizer's code is heavily based on this library.
+[Rust Implementation by @actionninja](https://github.com/actioninja/refpack-rs): Has a lot of information on the compression algorithm.
+
+[Java implementation by @memo33](https://github.com/memo33/jDBPFX/blob/master/src/jdbpfx/util/DBPFPackager.java)
+
+[Python Implementation by @lah7](https://github.com/lah7/sims2-4k-ui-mod/blob/master/qfs.py)
+
+[C Implementation by Denis Auroux](https://math.mit.edu/~auroux/software/fshtool.zip)
+
+[Original C Implementation by EA](http://download.wcnews.com/files/documents/sourcecode/shadowforce/transfer/asommers/mfcapp_src/engine/compress/RefPack.cpp)
+
+[Simple C++ Implementation by me](https://github.com/lingeringwillx/CrappySims2Compression/blob/main/compression.h)
