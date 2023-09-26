@@ -112,12 +112,12 @@ bytes compress(bytes& src) {
 		//copy bytes from src to dst until the location of the match is reached
 		uint plain = matches[i].location - srcPos;
 		while(plain > 3) {
-			//this can only be a multiple of 4, due to the 2-bit right shift in the control character
-			plain -= plain % 4;
-			
-			//max possible value is 112
 			if(plain > 112) {
+				//max possible value is 112
 				plain = 112;
+			} else {
+				//this can only be a multiple of 4, due to the 2-bit right shift in the control character
+				plain -= plain % 4;
 			}
 			
 			if(dstPos + plain + 1 > dst.size()) {
@@ -175,10 +175,10 @@ bytes compress(bytes& src) {
 	//copy the remaining bytes at the end
 	uint plain = src.size() - srcPos;
 	while(plain > 3) {
-		plain -= plain % 4;
-		
 		if(plain > 112) {
 			plain = 112;
+		} else {
+			plain -= plain % 4;
 		}
 		
 		if(dstPos + plain + 1 > dst.size())  {
