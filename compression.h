@@ -124,7 +124,6 @@ bytes compress(bytes& src) {
 			// 111ppppp
 			dst[dstPos++] = 0b11100000 + ((plain - 4) >> 2);
 			
-			//add the characters that need to be copied
 			copyBytes(src, srcPos, dst, dstPos, plain);
 			
 			plain = matches[i].location - srcPos;
