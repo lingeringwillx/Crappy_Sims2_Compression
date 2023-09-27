@@ -16,8 +16,8 @@ void copyBytes(bytes& src, uint& srcPos, bytes& dst, uint& dstPos, uint length) 
 	}
 }
 
-template<typename t1, typename t2>
-t1 getMin(t1 a, t2 b) {
+template<typename T1, typename T2>
+T1 getMin(T1 a, T2 b) {
     return a <= b ? a : b;
 }
 
@@ -30,24 +30,27 @@ struct Match {
 //hashtable where the keys are 3 bytes sequences from src converted to integers, and the values are the last position where the 3 bytes sequence could be found
 class Table {
 	private:
+		bytes& src;
 		unordered_map<uint, uint> map;
 		uint lastPos = 0;
 		
-		uint getHash(bytes& src, uint pos) {
+		uint getHash(uint pos) {
 			return ((uint) src[pos++] << 16) + ((uint) src[pos++] << 8) + src[pos];
 		}
 		
 	public:
+		Table(bytes& buffer): src(buffer) {}
+		
 		//add all bytes between [lastPos, pos) to the table
-		void addTo(bytes &src, uint pos) {
+		void addTo(uint pos) {
 			for(lastPos; lastPos < pos; lastPos++) {
-				map[getHash(src, lastPos)] = lastPos;
+				map[getHash(lastPos)] = lastPos;
 			}
 		}
 		
 		//find the last match
-		Match getMatch(bytes &src, uint pos) {
-			auto iter = map.find(getHash(src, pos));
+		Match getMatch(uint pos) {
+			auto iter = map.find(getHash(pos));
 			
 			if(iter == map.end()) {
 				return Match{0, 0, 0};
@@ -80,12 +83,12 @@ class Table {
 //this typically happens with very small assets
 bytes compress(bytes& src) {
 	//finding patterns
-	Table table = Table();
+	Table table = Table(src);
 	vector<Match> matches = vector<Match>();
 	
 	uint i = 0;
 	while(i <= src.size() - 3) {
-		Match match = table.getMatch(src, i);
+		Match match = table.getMatch(i);
 		
 		if(match.length >= 3) {
 			matches.push_back(match);
@@ -94,7 +97,7 @@ bytes compress(bytes& src) {
 			i++;
 		}
 		
-		table.addTo(src, i);
+		table.addTo(i);
 	}
 	
 	//compress src
