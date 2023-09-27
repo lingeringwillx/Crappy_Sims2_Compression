@@ -16,6 +16,11 @@ void copyBytes(bytes& src, uint& srcPos, bytes& dst, uint& dstPos, uint length) 
 	}
 }
 
+template<typename t1, typename t2>
+t1 getMin(t1 a, t2 b) {
+    return a <= b ? a : b;
+}
+
 struct Match {
 	uint location;
 	uint length;
@@ -56,7 +61,9 @@ class Table {
 			}
 			
 			uint length = 3;
-			while(length < src.size() - pos && src[lastLoc + length] == src[pos + length] && length < 1028) {
+			uint maxLen = getMin(src.size() - pos, 1028);
+			
+			while(length < maxLen && src[lastLoc + length] == src[pos + length]) {
 				length++;
 			}
 			
@@ -92,15 +99,9 @@ bytes compress(bytes& src) {
 	
 	//compress src
 	//compressed output has to smaller than the decompressed output, otherwise it's not useful
-	uint bufferSize = src.size() - 1;
+	//maximum possible size of the compressed entry is 0xFFFFFF + 1 due to the fact that the compressed size in the header is only 3 bytes long
+	bytes dst = bytes(getMin(src.size() - 1, 16777216));
 	
-	//maximum possible size of the compressed entry due to the fact that the compressed size in the header is only 3 bytes long
-	if(bufferSize > 16777216) {
-		bufferSize = 16777216;
-	}
-	
-	bytes dst = bytes(bufferSize);
-
 	uint srcPos = 0;
 	uint dstPos = 9;
 	
@@ -112,13 +113,9 @@ bytes compress(bytes& src) {
 		//copy bytes from src to dst until the location of the match is reached
 		uint plain = matches[i].location - srcPos;
 		while(plain > 3) {
-			if(plain > 112) {
-				//max possible value is 112
-				plain = 112;
-			} else {
-				//this can only be a multiple of 4, due to the 2-bit right shift in the control character
-				plain -= plain % 4;
-			}
+			//max possible value is 112
+			//this can only be a multiple of 4, due to the 2-bit right shift in the control character
+			plain = getMin(plain - plain % 4, 112);
 			
 			if(dstPos + plain + 1 > dst.size()) {
 				return bytes();
@@ -175,11 +172,7 @@ bytes compress(bytes& src) {
 	//copy the remaining bytes at the end
 	uint plain = src.size() - srcPos;
 	while(plain > 3) {
-		if(plain > 112) {
-			plain = 112;
-		} else {
-			plain -= plain % 4;
-		}
+		plain = getMin(plain - plain % 4, 112);
 		
 		if(dstPos + plain + 1 > dst.size())  {
 			return bytes();
