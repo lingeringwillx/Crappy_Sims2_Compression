@@ -97,7 +97,7 @@ offset = 0
 
 Note: For small files, the compressed data could end up being longer than the uncompressed data (9 bytes header + 1 control character + no reduced size from compression). You would need to account for this either by creating an array that's slighty longer than the uncompressed data, or by simply discarding the compressed output and keeping the file uncompressed.
 
-2- Find common patterns within the file. There isn't one way to achieve this, but rather a variey of ways. A common way is to create a map/dicationary containing the patterns and their respective locations.
+2- Find common patterns within the file. There is a variey of ways to achieve this, but this is commonly done using hash chaining. 
 
 3- Loop over the file and check the pattern in the current location against the previous locations. Find the longest matching pattern, or at least find a match of a good length. The match has to be within the length and offset boundaries specified by the compression algorithm.
 
