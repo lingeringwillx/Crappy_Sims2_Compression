@@ -1,9 +1,0 @@
-I tested three different C++ solutions for parallelism:
-
-1- Parallelism using C++17 (foreach loop and a parallel execution policy)
-2- Parallelism via OpenMP (pragma omp parallel for)
-3- Parallelism via PPL (concurrency::parallel_for_each)
-
-Both 1 and 3 seemed to grind the system to a halt, entirely occupying the CPU. OpenMP on the other hand seems to be a little lighter taking less resources when the system is being used for other tasks. Hence, OpenMP was chosen for this program.
-
-This is the case for the Visual C++ Build Tools compiler. I don't know if compilers from other vendors would produce the same results.
