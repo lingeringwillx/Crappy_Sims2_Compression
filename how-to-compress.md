@@ -30,7 +30,7 @@ When copying plainly: `literals_from_compressed_data  literals_from_compressed_d
 
 #### Control Characters:
 
-#### Short (0x00 - 0x7F)
+#### Very Short (0x00 - 0x7F)
 
 Has two control characters b0 and b1. Their bits are listed in order below.
 
@@ -44,7 +44,7 @@ count = ((b0 & 0x1C) >> 2) + 3 //3-11 ((mask off & shift right b0) + 3)
 offset: ((b0 & 0x60) << 3) + b1 + 1 //1-1024 ((mask off & shift left b0) + b1 + 1)
 ```
 
-#### Medium (0x80 - 0xBF)
+#### Short (0x80 - 0xBF)
 
 Has three control characters.
 
@@ -117,7 +117,7 @@ Typical structure of compressed data: `control_characters literals_from_decompre
 
 Note: In most modder code the subtraction for the offset (offset - 1) is done before the bit operations.
 
-#### Short
+#### Very Short
 
 The minimum length for the matching pattern should be 3 (otherwise this compression is not useful).
 
@@ -129,7 +129,7 @@ b0 = (((offset - 1) >> 3) & 0x60) | ((count - 3) << 2) | plain // (shift right &
 b1 = offset - 1 // first 8 bits of (offset - 1)
 ```
 
-#### Medium
+#### Short
 
 The minimum length for the matching pattern should be 4 (otherwise this compression is not useful).
 

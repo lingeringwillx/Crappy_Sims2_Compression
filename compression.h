@@ -229,10 +229,6 @@ bytes decompress(bytes& src) {
 	uint nCopy, offset, plain;
 	
 	while(srcPos < src.size()) {
-		if(srcPos + 1 > src.size()) {
-			return bytes();
-		}
-		
 		b0 = src[srcPos++];
 
 		if(b0 < 0x80) {
@@ -265,11 +261,11 @@ bytes decompress(bytes& src) {
 				return bytes();
 			}
 			
-			// 110occpp oooooooo oooooooo cccccccc
 			b1 = src[srcPos++];
 			b2 = src[srcPos++];
 			b3 = src[srcPos++];
 			
+			// 110occpp oooooooo oooooooo cccccccc
 			plain = b0 & 0b00000011; //0-3
 			nCopy = ((b0 & 0b00001100) << 6) + b3 + 5; //5-1028
 			offset = ((b0 & 0b00010000) << 12) + (b1 << 8) + b2 + 1; //1-131072
