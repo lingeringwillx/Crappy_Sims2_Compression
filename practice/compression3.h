@@ -112,7 +112,7 @@ class HashChain {
 				if(match.length > longestMatch.length) {
 					longestMatch = match;
 					
-					if(longestMatch.length == 1028) {
+					if(longestMatch.length >= 100) {
 						break;
 					}
 				}

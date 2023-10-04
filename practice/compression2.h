@@ -74,7 +74,6 @@ class Table {
 		//check past values and find the longest matching pattern
 		Match getLongestMatch(uint pos) {
 			auto& positions = map[getHash(pos)];
-			
 			Match longestMatch = Match{0, 0, 0};
 			
 			//loop from the end
@@ -91,7 +90,7 @@ class Table {
 					longestMatch = match;
 				}
 				
-				if(longestMatch.length == 1028) {
+				if(longestMatch.length >= 100) {
 					break;
 				}
 			}
