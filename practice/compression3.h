@@ -54,6 +54,7 @@ class HashChain {
 			lastHash = ((lastHash << 8) | src[pos + 1]) & 0xFFFF;
 			return lastHash;
 		}
+		
 		//get the previous position that resolves to the same hash, or 0xFFFFFFFF if the position is invalid
 		uint getPrevPos(uint prevPos, uint pos) {
 			uint nextPrevPos = prev[prevPos & 0x1FFFF];
