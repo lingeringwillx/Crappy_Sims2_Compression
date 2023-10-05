@@ -1,5 +1,5 @@
 //(Unused) This is a simple implementation of the QFS compression
-//uses a map for pattern matching
+//uses a map for pattern matching, keeping track of the location of the last matching pattern only
 
 //Compression: Okay
 //Speed: Okay
@@ -62,8 +62,8 @@ class Table {
 				return Match{0, 0, 0};
 			}
 			
-			uint lastLoc = iter->second;
-			uint offset = pos - lastLoc;
+			uint prevPos = iter->second;
+			uint offset = pos - prevPos;
 			
 			if(offset > 131072) {
 				return Match{0, 0, 0};
@@ -72,7 +72,7 @@ class Table {
 			uint length = 3;
 			uint maxLen = getMin(src.size() - pos, 1028);
 			
-			while(length < maxLen && src[lastLoc + length] == src[pos + length]) {
+			while(length < maxLen && src[prevPos + length] == src[pos + length]) {
 				length++;
 			}
 			

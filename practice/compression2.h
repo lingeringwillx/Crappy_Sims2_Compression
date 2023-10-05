@@ -43,16 +43,6 @@ class Table {
 			return ((uint) src[pos++] << 8) + src[pos];
 		}
 		
-	public:
-		Table(bytes& buffer): src(buffer) {}
-		
-		//add all bytes between [lastPos, pos) to the table
-		void addTo(uint pos) {
-			for(lastPos; lastPos < pos; lastPos++) {
-				map[getHash(lastPos)].push_back(lastPos);
-			}
-		}
-		
 		//find out how long the match is, and check if the length and offset are valid
 		Match getMatch(uint prevPos, uint pos) {
 			uint length = 2;
@@ -68,6 +58,16 @@ class Table {
 				return Match{pos, length, offset};
 			} else {
 				return Match{0, 0, 0};
+			}
+		}
+		
+	public:
+		Table(bytes& buffer): src(buffer) {}
+		
+		//add all bytes between [lastPos, pos) to the table
+		void addTo(uint pos) {
+			for(lastPos; lastPos < pos; lastPos++) {
+				map[getHash(lastPos)].push_back(lastPos);
 			}
 		}
 		

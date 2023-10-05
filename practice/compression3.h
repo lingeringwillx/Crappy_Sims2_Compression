@@ -33,7 +33,7 @@ struct Match {
 };
 
 //the hash chain is similar to a hash map, the most recent values are stored in head, and past values are stored in prev
-//it requires very little memory allocation, and the allocation is only done once, which makes it very efficient
+//it requires very little memory allocation/deallocation, and the allocation is only done once, which makes it very efficient
 //head is a hash map where the key is a hash created from a number of bytes in src
 //and the value is the last position where the bytes could be found
 //prev is a an array where the index is the position masked by the length of the sliding window
@@ -47,40 +47,25 @@ class HashChain {
 		uint lastHash = 0;
 		
 		//a rolling hash calculated from the last hash value
-		//in this version this has no impact on performance, so a regular hash function could be used instead
+		//in this version this has no impact on performance, so a regular hashing function could be used instead
 		//if the hash is more complicated then a rolling hash might help reduce the amount of computation done
+		//a good hashing function is needed to get good performance
 		uint updateHash(uint pos) {
 			lastHash = ((lastHash << 8) | src[pos + 1]) & 0xFFFF;
 			return lastHash;
 		}
-		
-	public:
-		//init hash
-		HashChain(bytes& buffer): src(buffer) {
-			lastHash = src[0];
-		}
-		
-		//add all bytes from lastPos to pos
-		void addTo(uint pos) {
-			for(lastPos; lastPos <= pos; lastPos++) {
-				uint hashVal = updateHash(lastPos);
-				prev[lastPos & 0x1FFFF] = head[hashVal];
-				head[hashVal] = lastPos;
-			}
-		}
-		
 		//get the previous position that resolves to the same hash, or 0xFFFFFFFF if the position is invalid
 		uint getPrevPos(uint prevPos, uint pos) {
-			uint next = prev[prevPos & 0x1FFFF];
-			if(pos - next > 131072 || next >= prevPos) {
+			uint nextPrevPos = prev[prevPos & 0x1FFFF];
+			if(pos - nextPrevPos > 131072 || nextPrevPos >= prevPos) {
 				return 0xFFFFFFFF;
 			}
 			
-			return next;
+			return nextPrevPos;
 		}
 		
 		//find out how long the match is, and check if the length and offset are valid
-		//depending on the hash function you might also need to check the first 2-3 bytes here
+		//depending on the hashing function you might also need to check the first 2-3 bytes here
 		Match getMatch(uint prevPos, uint pos) {
 			uint length = 2;
 			uint maxLen = getMin(src.size() - pos, 1028);
@@ -95,6 +80,21 @@ class HashChain {
 				return Match{pos, length, offset};
 			} else {
 				return Match{0, 0, 0};
+			}
+		}
+		
+	public:
+		//init hash
+		HashChain(bytes& buffer): src(buffer) {
+			lastHash = src[0];
+		}
+		
+		//add all bytes from lastPos to pos
+		void addTo(uint pos) {
+			for(lastPos; lastPos <= pos; lastPos++) {
+				uint hashVal = updateHash(lastPos);
+				prev[lastPos & 0x1FFFF] = head[hashVal];
+				head[hashVal] = lastPos;
 			}
 		}
 		
