@@ -33,7 +33,7 @@ namespace qfs {
 		uint length;
 		uint offset;
 	};
-
+	
 	//the hash chain is similar to a hash map, the most recent values are stored in head, and past values are stored in prev
 	//it requires very little memory allocation/deallocation, and the allocation is only done once, which makes it very efficient
 	//head is a hash map where the key is a hash created from a number of bytes in src
@@ -43,18 +43,12 @@ namespace qfs {
 	class HashChain {
 		private:
 			bytes& src;
+			uint lastPos = 0;
 			vector<uint> head = vector<uint>(0x10000, 0xFFFFFFFF);
 			vector<uint> prev = vector<uint>(0x20000);
-			uint lastPos = 0;
-			uint lastHash = 0;
 			
-			//a rolling hash calculated from the last hash value
-			//in this version this has no impact on performance, so a regular hashing function could be used instead
-			//if the hash is more complicated then a rolling hash might help reduce the amount of computation done
-			//a good hashing function is needed to get good performance
-			uint updateHash(uint pos) {
-				lastHash = ((lastHash << 8) | src[pos]) & 0xFFFF;
-				return lastHash;
+			uint getHash(uint pos) {
+				return ((uint) src[pos++] << 8) | src[pos];
 			}
 			
 			//get the previous position that resolves to the same hash, or 0xFFFFFFFF if the position is invalid
@@ -87,15 +81,12 @@ namespace qfs {
 			}
 			
 		public:
-			//init hash
-			HashChain(bytes& buffer): src(buffer) {
-				updateHash(0);
-			}
+			HashChain(bytes& buffer): src(buffer) {}
 			
 			//add all bytes from lastPos to pos
 			void addTo(uint pos) {
 				for(lastPos; lastPos <= pos; lastPos++) {
-					uint hashVal = updateHash(lastPos + 1);
+					uint hashVal = getHash(lastPos);
 					prev[lastPos & 0x1FFFF] = head[hashVal];
 					head[hashVal] = lastPos;
 				}
