@@ -46,7 +46,7 @@ Alternatively, you can just drag and drop your file or folder to the executable 
 
 #### Implementations
 
-[Old Mystical C Implementation by BenK](http://www.moreawesomethanyou.com/smf/index.php/topic,8279.0.html): Old hard to read implementation based on zlib code. This is the strongest version of the compression out there and it's the same one used by The Compressorizer.
+[Old Mystical C Implementation by benrg](http://www.moreawesomethanyou.com/smf/index.php/topic,8279.0.html): Old hard to read implementation based on zlib code. This is the strongest version of the compression out there and it's the same one used by The Compressorizer.
 
 [C# Implementation by @0xC0000054](https://github.com/0xC0000054/DBPFSharp/blob/main/src/DBPFSharp/QfsCompression.cs)
 
