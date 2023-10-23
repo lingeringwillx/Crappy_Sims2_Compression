@@ -28,7 +28,7 @@ Alternatively, you can just drag and drop your file or folder to the executable 
 | `-d` | Decompress | Decompress without compression |
 | `-q` | Quiet | Don't output anything to the console except for errors |
 
-#### Information
+#### Resources
 
 [Niotso Wiki](http://wiki.niotso.org/RefPack): Generic information on the compression used by some old EA games.
 
