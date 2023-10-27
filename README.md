@@ -52,11 +52,13 @@ Alternatively, you can just drag and drop your file or folder to the executable 
 
 [Rust Implementation by @actionninja](https://github.com/actioninja/refpack-rs): Has a lot of information on the compression algorithm.
 
-[Java implementation by @memo33](https://github.com/memo33/jDBPFX/blob/master/src/jdbpfx/util/DBPFPackager.java)
+[Java Implementation by @memo33](https://github.com/memo33/jDBPFX/blob/master/src/jdbpfx/util/DBPFPackager.java)
+
+[JavaScript Implementation by @sebamarynissen](https://github.com/sebamarynissen/qfs-compression)
 
 [Python Implementation by @lah7](https://github.com/lah7/sims2-4k-ui-mod/blob/master/qfs.py)
 
-[C Implementation by Denis Auroux](https://math.mit.edu/~auroux/software/fshtool.zip)
+[C Implementation by Denis Auroux](https://math.mit.edu/~auroux/software/fshtool.zip): Old header format.
 
 [Original C Implementation by EA](http://download.wcnews.com/files/documents/sourcecode/shadowforce/transfer/asommers/mfcapp_src/engine/compress/RefPack.cpp)
 
