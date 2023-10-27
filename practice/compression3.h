@@ -83,7 +83,7 @@ namespace qfs {
 		public:
 			HashChain(bytes& buffer): src(buffer) {}
 			
-			//add all bytes from lastPos to pos
+			//add all bytes between lastPos and pos to the hash chain
 			void addTo(uint pos) {
 				for(lastPos; lastPos <= pos; lastPos++) {
 					uint hashVal = getHash(lastPos);
