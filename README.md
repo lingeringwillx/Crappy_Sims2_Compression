@@ -50,7 +50,7 @@ Alternatively, you can just drag and drop your file or folder to the executable 
 
 [C# Implementation by @0xC0000054](https://github.com/0xC0000054/DBPFSharp/blob/main/src/DBPFSharp/QfsCompression.cs)
 
-[Rust Implementation by @actionninja](https://github.com/actioninja/refpack-rs): Has a lot of information on the compression algorithm.
+[Rust Implementation by @actioninja](https://github.com/actioninja/refpack-rs): Has a lot of information on the compression algorithm.
 
 [Java Implementation by java_dwarf](https://github.com/memo33/jDBPFX/blob/master/src/jdbpfx/util/DBPFPackager.java)
 
