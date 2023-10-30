@@ -52,7 +52,7 @@ Alternatively, you can just drag and drop your file or folder to the executable 
 
 [Rust Implementation by @actionninja](https://github.com/actioninja/refpack-rs): Has a lot of information on the compression algorithm.
 
-[Java Implementation by @memo33](https://github.com/memo33/jDBPFX/blob/master/src/jdbpfx/util/DBPFPackager.java)
+[Java Implementation by java_dwarf](https://github.com/memo33/jDBPFX/blob/master/src/jdbpfx/util/DBPFPackager.java)
 
 [JavaScript Implementation by @sebamarynissen](https://github.com/sebamarynissen/qfs-compression)
 
