@@ -12,7 +12,7 @@ There is now an experimental release that could be used as a drop-in replacement
 
 1- By utilizing all of the cores of the CPU for compression.
 
-2- By using level 5 compression parameters instead of level 9.
+2- By using zlib's level 6 compression parameters instead of level 9.
 
 To use it, just download the .exe file and put it in the same directory as The Compressorizer, overwriting the old file.
 
@@ -22,11 +22,8 @@ Alternatively, you can just drag and drop your file or folder to the executable 
 
 | Flag | Name | Description
 | - | - | - |
-| `-l` | Compression Level | Can be `-l1`, `-l3`, `-l5`, `-l7`, or `-l9`. Higher values mean stronger but slower compression |
 | `-r` | Recompress | Decompress the file then compress it again, can provide a bigger compression if the older compression is weak, but will slow down the compression (Note: This is always enabled in the gui version) |
-| `-p` | Parallel | Use all cores for compresson, will speed up the compression but will use 100% of CPU during compression (Note: This is always enabled in the gui version) |
 | `-d` | Decompress | Decompress without compression |
-| `-q` | Quiet | Don't output anything to the console except for errors |
 
 #### Resources
 

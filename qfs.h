@@ -15,8 +15,8 @@
 #define assert(expr) do{}while(0)
 	
 static bool qfs_decompress(const unsigned char* src, int compressed_size, unsigned char* dst, int uncompressed_size, bool truncate);
-static int qfs_compress(const unsigned char* src, int srclen, unsigned char* dst, int level);
-static unsigned char* compress(const unsigned char* src, const unsigned char* srcend, unsigned char* dst, unsigned char* dstend, bool pad, int level);
+static int qfs_compress(const unsigned char* src, int srclen, unsigned char* dst);
+static unsigned char* _compress(const unsigned char* src, const unsigned char* srcend, unsigned char* dst, unsigned char* dstend, bool pad);
 
 // datatype assumptions: 8-bit bytes; sizeof(int) >= 4
 
@@ -164,7 +164,7 @@ static bool qfs_decompress(const unsigned char* src, int compressed_size, unsign
  * caller must delete). If it's uncompressable, return NULL.
  */
  
-static int qfs_compress(const unsigned char* src, int srclen, unsigned char* dst, int level) {
+static int qfs_compress(const unsigned char* src, int srclen, unsigned char* dst) {
     // There are only 3 byte for the uncompressed size in the header,
     // so I guess we can only compress files larger than 16MB...
     if (srclen < 14 || srclen >= 16777216) return 0;
@@ -172,7 +172,7 @@ static int qfs_compress(const unsigned char* src, int srclen, unsigned char* dst
     // We only want the compressed output if it's smaller than the
     // uncompressed.
 
-    unsigned char* dstend = compress(src, src+srclen, dst, dst+srclen-1, false, level);
+    unsigned char* dstend = _compress(src, src+srclen, dst, dst+srclen-1, false);
 	
     if (dstend) {
         return dstend - dst;
@@ -185,6 +185,12 @@ static int qfs_compress(const unsigned char* src, int srclen, unsigned char* dst
 #define MIN_MATCH 3
 
 #define MIN_LOOKAHEAD (MAX_MATCH+MIN_MATCH+1)
+
+// corresponds to zlib compression level 6
+#define GOOD_LENGTH 8
+#define MAX_LAZY    16
+#define NICE_LENGTH 128
+#define MAX_CHAIN   128
 
 #define HASH_BITS 16
 #define HASH_SIZE 65536
@@ -332,10 +338,7 @@ static inline unsigned longest_match(
     unsigned const pos,
     unsigned const remaining,
     unsigned const prev_length,
-    unsigned* pmatch_start,
-    int GOOD_LENGTH,
-    int NICE_LENGTH,
-    int MAX_CHAIN)
+    unsigned* pmatch_start)
 {
     unsigned chain_length = MAX_CHAIN;         /* max hash chain length */
     int best_len = prev_length;                /* best match length so far */
@@ -398,37 +401,7 @@ static inline unsigned longest_match(
 
 /* Returns the end of the compressed data if successful, or NULL if we overran the output buffer */
 
-static unsigned char* compress(const unsigned char* src, const unsigned char* srcend, unsigned char* dst, unsigned char* dstend, bool pad, int level) {
-	
-	int GOOD_LENGTH = 8;
-	int MAX_LAZY = 16;
-	int NICE_LENGTH = 32;
-	int MAX_CHAIN = 32;
-		
-	if(level == 9) {
-		GOOD_LENGTH = 32;
-		MAX_LAZY = 258;
-		NICE_LENGTH = 258;
-		MAX_CHAIN = 4096;
-		
-	} else if(level == 7) {
-		GOOD_LENGTH = 8;
-		MAX_LAZY = 32;
-		NICE_LENGTH = 128;
-		MAX_CHAIN = 256;
-		
-	} else if(level == 3) {
-		GOOD_LENGTH = 4;
-		MAX_LAZY = 6;
-		NICE_LENGTH = 32;
-		MAX_CHAIN = 32;
-		
-	} else if(level == 1) {
-		GOOD_LENGTH = 4;
-		MAX_LAZY = 4;
-		NICE_LENGTH = 8;
-		MAX_CHAIN = 4;
-	}
+static unsigned char* _compress(const unsigned char* src, const unsigned char* srcend, unsigned char* dst, unsigned char* dstend, bool pad) {
 	
     unsigned match_start = 0;
     unsigned match_length = MIN_MATCH-1;           /* length of best match */
@@ -459,7 +432,7 @@ static unsigned char* compress(const unsigned char* src, const unsigned char* sr
 
         if (hash_head >= 0 && prev_length < MAX_LAZY && pos - hash_head <= MAX_DIST) {
 
-            match_length = longest_match (hash_head, hash, src, srcend, pos, remaining, prev_length, &match_start, GOOD_LENGTH, NICE_LENGTH, MAX_CHAIN);
+            match_length = longest_match (hash_head, hash, src, srcend, pos, remaining, prev_length, &match_start);
 
             /* If we can't encode it, drop it. */
             if ((match_length <= 3 && pos - match_start > 1024) || (match_length <= 4 && pos - match_start > 16384))

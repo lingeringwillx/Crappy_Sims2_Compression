@@ -16,69 +16,49 @@ void tryDelete(string fileName) {
 
 int main(int argc, char *argv[]) {
 	if(argc == 1) {
-		cout << "No arguments provided" << endl;
+		cout << "No file path provided" << endl;
+		return 0;
+	}
+	
+	string arg = argv[argc - 1];
+	
+	if(arg == "help") {
+		cout << "dbpf-recompress.exe -args package_file_or_folder" << endl;
+		cout << "  -r  recompress" << endl;
+		cout << "  -d  decompress" << endl;
+		cout << endl;
 		return 0;
 	}
 	
 	//parse args
-	bool recompress = false;
-	bool decompress = false;
-	bool inParallel = false;
-	bool quiet = false;
-	int level = 5;
+	dbpf::Mode mode = dbpf::COMPRESS;
 	
-	string arg;
-	for(int i = 0; i < argc; i++) {
+	for(int i = 1; i < argc - 1; i++) {
 		arg = argv[i];
 		
-		if(arg == "-h" || arg == "help") {
-			cout << "  -l  level" << endl;
-			cout << "  -p  parallel" << endl;
-			cout << "  -r  recompress" << endl;
-			cout << "  -d  decompress" << endl;
-			cout << "  -q  quiet" << endl;
-			cout << endl;
-			return 0;
-		}
-		
-		else if(arg.find("-l") == 0) {
-			if(arg.size() < 3) {
-				cout << "Compression level not specified" << endl;
-				return 0;
+		for(int i = 1; i < arg.size(); i++) {
+			char c = arg[i];
+			
+			if(c == 'r') {
+				if(mode == dbpf::DECOMPRESS) {
+					cout << "Cannot use arguments -d and -r at the same time" << endl;
+					return 0;
+				}
+				
+				mode = dbpf::RECOMPRESS;
+				
+			} else if(c == 'd') {
+				if(mode == dbpf::RECOMPRESS) {
+					cout << "Cannot use arguments -d and -r at the same time" << endl;
+					return 0;
+				}
+				
+				mode = dbpf::DECOMPRESS;
 			}
-
-			level = arg[2] - 48;
-			
-			if(level != 1 && level != 3 && level != 5 && level != 7 && level != 9) {
-				cout << "Level " << to_string(i) << " is not supported" << endl;
-				return 0;
-			}
-			
-		} else if(arg == "-r") {
-			recompress = true;
-			
-		} else if(arg == "-d") {
-			decompress = true;
-			
-		} else if(arg == "-p") {
-			inParallel = true;
-		
-		} else if(arg =="-q") {
-			quiet = true;
 		}
-	}
-	
-	if(decompress && recompress) {
-		cout << "Cannot use arguments -d and -r at the same time" << endl;
-		return 0;
 	}
 	
 	string pathName = argv[argc - 1];
-
-	if(pathName == "dbpf-recompress" || pathName.find("-") == 0) {
-		cout << "No file path provided" << endl;
-		return 0;
-	}
 	
 	auto files = vector<filesystem::directory_entry>();
 	
@@ -136,10 +116,10 @@ int main(int argc, char *argv[]) {
 		}
 		
 		//compress entries, pack package, and write to temp file
-		fstream tempFile = fstream(tempFileName, ios::in | ios::out | ios::trunc | ios::binary);
+		fstream tempFile = fstream(tempFileName, ios::in | ios::out | ios::binary | ios::trunc);
 		
 		if(tempFile.is_open()) {
-			dbpf::putPackage(tempFile, file, package, inParallel, decompress, recompress, level);
+			dbpf::putPackage(tempFile, file, package, mode);
 			
 		} else {
 			cout << displayPath << ": Failed to create temp file" << endl;
@@ -174,13 +154,18 @@ int main(int argc, char *argv[]) {
 					break;
 				}
 				
-				bytes oldContent = dbpf::readFile(file, oldEntry.location, oldEntry.size);
-				bytes newContent = dbpf::readFile(tempFile, newEntry.location, newEntry.size);
-				
-				if(dbpf::decompressEntry(oldEntry, oldContent) != dbpf::decompressEntry(newEntry, newContent)) {
-					cout << displayPath << ": Mismatch between old entry and new entry" << endl;
-					validationFailed = true;
-					break;
+				if(mode != dbpf::DECOMPRESS) {
+					bytes oldContent = dbpf::readFile(file, oldEntry.location, oldEntry.size);
+					bytes newContent = dbpf::readFile(tempFile, newEntry.location, newEntry.size);
+					
+					oldContent = dbpf::decompressEntry(oldEntry, oldContent);
+					newContent = dbpf::decompressEntry(newEntry, newContent);
+					
+					if(oldContent != newContent) {
+						cout << displayPath << ": Mismatch between old entry and new entry" << endl;
+						validationFailed = true;
+						break;
+					}
 				}
 			}
 		}
@@ -196,7 +181,7 @@ int main(int argc, char *argv[]) {
 		float new_size = filesystem::file_size(tempFileName) / 1024.0;
 		
 		//overwrite old file
-		if(decompress || new_size < current_size) {
+		if(mode == dbpf::DECOMPRESS || new_size < current_size) {
 			try {
 				filesystem::rename(tempFileName, fileName);
 			}
@@ -214,30 +199,25 @@ int main(int argc, char *argv[]) {
 		new_size = filesystem::file_size(fileName) / 1024.0;
 		
 		//output file size to console
-		if(!quiet) {
-			cout << displayPath << " " << fixed << setprecision(2);
-			
-			if(current_size >= 1000) {
-				cout << current_size / 1024.0 << " MB";
-			} else {
-				cout << current_size << " KB";
-			}
-			
-			cout << " -> ";
-			
-			if(new_size >= 1000) {
-				cout << new_size / 1024.0 << " MB";
-			} else {
-				cout << new_size << " KB";
-			}
-			
-			cout << endl;
+		cout << displayPath << " " << fixed << setprecision(2);
+		
+		if(current_size >= 1000) {
+			cout << current_size / 1024.0 << " MB";
+		} else {
+			cout << current_size << " KB";
 		}
-	}
-	
-	if(!quiet) {
+		
+		cout << " -> ";
+		
+		if(new_size >= 1000) {
+			cout << new_size / 1024.0 << " MB";
+		} else {
+			cout << new_size << " KB";
+		}
+		
 		cout << endl;
 	}
 	
+	cout << endl;
 	return 0;
 }

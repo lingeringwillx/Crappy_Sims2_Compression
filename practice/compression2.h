@@ -80,7 +80,13 @@ namespace qfs {
 				
 				//loop from the end
 				//it's important to limit the number of loops here for the sake of speed
-				for(auto iter = positions.rbegin(); iter != positions.rend() && iter < positions.rbegin() + 100; iter++) {
+				auto end = positions.rend();
+				
+				if(positions.size() > 100) {
+					end = positions.rbegin() + 100;
+				}
+				
+				for(auto iter = positions.rbegin(); iter < end; iter++) {
 					uint prevPos = *iter;
 					
 					if(pos - prevPos > 131072) {

@@ -195,7 +195,7 @@ namespace qfs {
 				dst[dstPos++] = (plain << 6) + (offset >> 8);
 				dst[dstPos++] = offset;
 				
-			} else if(nCopy <= 1028 && offset < 131072) {
+			} else /*if(nCopy <= 1028 && offset < 131072)*/ {
 				if(dstPos + plain + 4 > dst.size())  {
 					return bytes();
 				}

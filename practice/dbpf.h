@@ -53,6 +53,9 @@ namespace dbpf {
 		buf[pos++] = n >> 8;
 		buf[pos++] = n;
 	}
+	
+	//compression mode
+	enum Mode { COMPRESS, DECOMPRESS, RECOMPRESS };
 
 	//representing one entry (file) inside the package
 	struct Entry {
@@ -97,7 +100,7 @@ namespace dbpf {
 		}
 	};
 
-	bytes compressEntry(Entry& entry, bytes& content, int level) {
+	bytes compressEntry(Entry& entry, bytes& content) {
 		if(!entry.compressed && !entry.repeated) {
 			bytes newContent = qfs::compress(content);
 			
@@ -126,10 +129,10 @@ namespace dbpf {
 		return content;
 	}
 
-	bytes recompressEntry(Entry& entry, bytes& content, int level) {
+	bytes recompressEntry(Entry& entry, bytes& content) {
 		bool wasCompressed = entry.compressed;
 		bytes decompressedContent = decompressEntry(entry, content);
-		bytes compressedContent = compressEntry(entry, decompressedContent, level);
+		bytes compressedContent = compressEntry(entry, decompressedContent);
 		
 		if(compressedContent.size() < content.size()) {
 			return compressedContent;
@@ -279,7 +282,7 @@ namespace dbpf {
 	}
 
 	//put package in file
-	void putPackage(fstream& newFile, fstream& oldFile, Package& package, bool inParallel, bool decompress, bool recompress, uint level) {
+	void putPackage(fstream& newFile, fstream& oldFile, Package& package, Mode mode) {
 		//write header
 		bytes buffer = bytes(96);
 		uint pos = 0;
@@ -307,7 +310,7 @@ namespace dbpf {
 		omp_lock_t lock;
 		omp_init_lock(&lock);
 		
-		#pragma omp parallel for if (inParallel)
+		#pragma omp parallel for
 		for(int i = 0; i < package.entries.size(); i++) {
 			omp_set_lock(&lock);
 			bytes content = readFile(oldFile, package.entries[i].location, package.entries[i].size);
@@ -315,12 +318,12 @@ namespace dbpf {
 			
 			bytes newContent;
 			
-			if(decompress) {
+			if(mode == DECOMPRESS) {
 				newContent = decompressEntry(package.entries[i], content);
-			} else if(recompress) {
-				newContent = recompressEntry(package.entries[i], content, level);
+			} else if(mode == RECOMPRESS) {
+				newContent = recompressEntry(package.entries[i], content);
 			} else {
-				newContent = compressEntry(package.entries[i], content, level);
+				newContent = compressEntry(package.entries[i], content);
 			}
 			
 			package.entries[i].size = newContent.size();
