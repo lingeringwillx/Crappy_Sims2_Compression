@@ -58,8 +58,14 @@ Alternatively, you can just drag and drop your file or folder to the executable 
 
 [Python Implementation by @lah7](https://github.com/lah7/sims2-4k-ui-mod/blob/master/qfs.py)
 
-[C Implementation by Denis Auroux](https://math.mit.edu/~auroux/software/fshtool.zip): Old header format.
+[C++ Implementations by me](https://github.com/lingeringwillx/CrappySims2Compression/blob/main/practice)
+
+Implementations that only support the old header format (does not work with The Sims 2):
+
+[C Implementation by Denis Auroux](https://math.mit.edu/~auroux/software/fshtool.zip)
+
+[C++ Implementation by KUDr](https://github.com/MicaelJarniac/RefPack-Tool)
+
+[C# Implementation by @gibbed](https://github.com/gibbed/Gibbed.RefPack)
 
 [Original C Implementation by EA](http://download.wcnews.com/files/documents/sourcecode/shadowforce/transfer/asommers/mfcapp_src/engine/compress/RefPack.cpp)
-
-[C++ Implementations by me](https://github.com/lingeringwillx/CrappySims2Compression/blob/main/practice)
