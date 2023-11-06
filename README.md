@@ -1,3 +1,5 @@
+Old branch with more benchmarking and debugging code.
+
 #### Sims 2 Compression Experiments
 
 <img src="https://github.com/lingeringwillx/CrappySims2Compression/assets/111698406/5e1e045d-ab02-48c0-9a69-f8fb5ab57cbc" width="400">
