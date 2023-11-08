@@ -18,13 +18,6 @@ To use it, just download the .exe file and put it in the same directory as The C
 
 Alternatively, you can just drag and drop your file or folder to the executable and it will be compressed.
 
-#### Parameters
-
-| Flag | Name | Description
-| - | - | - |
-| `-r` | Recompress | Decompress the file then compress it again, can provide a bigger compression if the older compression is weak, but will slow down the compression (Note: This is always enabled in the gui version) |
-| `-d` | Decompress | Decompress without compression |
-
 #### Resources
 
 [Niotso Wiki](http://wiki.niotso.org/RefPack): Generic information on the compression used by some old EA games.

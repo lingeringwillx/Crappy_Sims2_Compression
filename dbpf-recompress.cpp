@@ -16,15 +16,14 @@ void tryDelete(string fileName) {
 
 int main(int argc, char *argv[]) {
 	if(argc == 1) {
-		cout << "No file path provided" << endl;
+		cout << "No arguments provided" << endl;
 		return 0;
 	}
 	
-	string arg = argv[argc - 1];
+	string arg = argv[1];
 	
 	if(arg == "help") {
 		cout << "dbpf-recompress.exe -args package_file_or_folder" << endl;
-		cout << "  -r  recompress" << endl;
 		cout << "  -d  decompress" << endl;
 		cout << endl;
 		return 0;
@@ -32,33 +31,19 @@ int main(int argc, char *argv[]) {
 	
 	//parse args
 	dbpf::Mode mode = dbpf::COMPRESS;
+	int fileArgIndex = 1;
 	
-	for(int i = 1; i < argc - 1; i++) {
-		arg = argv[i];
-		
-		for(int i = 1; i < arg.size(); i++) {
-			char c = arg[i];
-			
-			if(c == 'r') {
-				if(mode == dbpf::DECOMPRESS) {
-					cout << "Cannot use arguments -d and -r at the same time" << endl;
-					return 0;
-				}
-				
-				mode = dbpf::RECOMPRESS;
-				
-			} else if(c == 'd') {
-				if(mode == dbpf::RECOMPRESS) {
-					cout << "Cannot use arguments -d and -r at the same time" << endl;
-					return 0;
-				}
-				
-				mode = dbpf::DECOMPRESS;
-			}
-		}
+	if(arg == "-d") {
+		mode = dbpf::DECOMPRESS;
+		fileArgIndex = 2;
 	}
 	
-	string pathName = argv[argc - 1];
+	if(fileArgIndex > argc - 1) {
+		cout << "No file path provided" << endl;
+		return 0;
+	}
+	
+	string pathName = argv[fileArgIndex];
 	
 	auto files = vector<filesystem::directory_entry>();
 	
@@ -115,88 +100,127 @@ int main(int argc, char *argv[]) {
 			continue;
 		}
 		
-		//compress entries, pack package, and write to temp file
-		fstream tempFile = fstream(tempFileName, ios::in | ios::out | ios::binary | ios::trunc);
-		
-		if(tempFile.is_open()) {
-			dbpf::putPackage(tempFile, file, package, mode);
+		//find proper compression mode
+		if(mode != dbpf::DECOMPRESS) {
+			bool all_entries_compressed = true;
+			bool compression_can_improve = false;
 			
-		} else {
-			cout << displayPath << ": Failed to create temp file" << endl;
-			file.close();
-			continue;
-		}
-		
-		//validate new file
-		tempFile.seekg(0, ios::beg);
-		dbpf::Package newPackage = dbpf::getPackage(tempFile, displayPath + ".new");
-		
-		bool validationFailed = false;
-		
-		if(!validationFailed && newPackage.indexVersion == -1) {
-			cout << displayPath << ": Failed to load new package" << endl;
-			validationFailed = true;
-		}
-		
-		if(!validationFailed && (oldPackage.entries.size() != newPackage.entries.size())) {
-			cout << displayPath << ": Number of entries between old package and new package not matching" << endl;
-			validationFailed = true;
-		}
-		
-		if(!validationFailed) {
-			for(int i = 0; i < oldPackage.entries.size(); i++) {
-				auto& oldEntry = oldPackage.entries[i];
-				auto& newEntry = newPackage.entries[i];
-				
-				if(oldEntry.type != newEntry.type || oldEntry.group != newEntry.group || oldEntry.instance != newEntry.instance || oldEntry.resource != newEntry.resource) {
-					cout << displayPath << ": Types, groups, instances, or resources of entries not matching" << endl;
-					validationFailed = true;
+			for(auto entry: package.entries) {
+				if(!entry.compressed) {
+					all_entries_compressed = false;
 					break;
 				}
+			}
+			
+			//try to recompress one large entry that's already compressed and find out if we're gonna get a smaller size
+			for(auto entry: package.entries) {
+				if(entry.compressed && entry.uncompressedSize >= 100000) {
+					bytes content = dbpf::readFile(file, entry.location, entry.size);
+					content = dbpf::recompressEntry(entry, content);
+						
+					if(content.size() < entry.size) {
+						compression_can_improve = true;
+					}
+					
+					break;
+				}
+			}
+			
+			if(compression_can_improve) {
+				mode = dbpf::RECOMPRESS;
+			} else {
+				if(all_entries_compressed) {
+					mode = dbpf::SKIP;
+				} else {
+					mode = dbpf::COMPRESS;
+				}
+			}
+		}
+		
+		if(mode != dbpf::SKIP) {
+			//compress entries, pack package, and write to temp file
+			fstream tempFile = fstream(tempFileName, ios::in | ios::out | ios::binary | ios::trunc);
+			
+			if(tempFile.is_open()) {
+				dbpf::putPackage(tempFile, file, package, mode);
 				
-				if(mode != dbpf::DECOMPRESS) {
-					bytes oldContent = dbpf::readFile(file, oldEntry.location, oldEntry.size);
-					bytes newContent = dbpf::readFile(tempFile, newEntry.location, newEntry.size);
+			} else {
+				cout << displayPath << ": Failed to create temp file" << endl;
+				file.close();
+				continue;
+			}
+			
+			//validate new file
+			tempFile.seekg(0, ios::beg);
+			dbpf::Package newPackage = dbpf::getPackage(tempFile, displayPath + ".new");
+			
+			bool validationFailed = false;
+			
+			if(!validationFailed && newPackage.indexVersion == -1) {
+				cout << displayPath << ": Failed to load new package" << endl;
+				validationFailed = true;
+			}
+			
+			if(!validationFailed && (oldPackage.entries.size() != newPackage.entries.size())) {
+				cout << displayPath << ": Number of entries between old package and new package not matching" << endl;
+				validationFailed = true;
+			}
+			
+			if(!validationFailed) {
+				for(int i = 0; i < oldPackage.entries.size(); i++) {
+					auto& oldEntry = oldPackage.entries[i];
+					auto& newEntry = newPackage.entries[i];
 					
-					oldContent = dbpf::decompressEntry(oldEntry, oldContent);
-					newContent = dbpf::decompressEntry(newEntry, newContent);
-					
-					if(oldContent != newContent) {
-						cout << displayPath << ": Mismatch between old entry and new entry" << endl;
+					if(oldEntry.type != newEntry.type || oldEntry.group != newEntry.group || oldEntry.instance != newEntry.instance || oldEntry.resource != newEntry.resource) {
+						cout << displayPath << ": Types, groups, instances, or resources of entries not matching" << endl;
 						validationFailed = true;
 						break;
 					}
+					
+					if(mode != dbpf::DECOMPRESS) {
+						bytes oldContent = dbpf::readFile(file, oldEntry.location, oldEntry.size);
+						bytes newContent = dbpf::readFile(tempFile, newEntry.location, newEntry.size);
+						
+						oldContent = dbpf::decompressEntry(oldEntry, oldContent);
+						newContent = dbpf::decompressEntry(newEntry, newContent);
+						
+						if(oldContent != newContent) {
+							cout << displayPath << ": Mismatch between old entry and new entry" << endl;
+							validationFailed = true;
+							break;
+						}
+					}
 				}
 			}
-		}
-		
-		file.close();
-		tempFile.close();
-		
-		if(validationFailed) {
-			tryDelete(tempFileName);
-			continue;
-		}
-		
-		float new_size = filesystem::file_size(tempFileName) / 1024.0;
-		
-		//overwrite old file
-		if(mode == dbpf::DECOMPRESS || new_size < current_size) {
-			try {
-				filesystem::rename(tempFileName, fileName);
-			}
 			
-			catch(filesystem::filesystem_error) {
-				cout << displayPath << ": Failed to overwrite file" << endl;
+			file.close();
+			tempFile.close();
+			
+			if(validationFailed) {
 				tryDelete(tempFileName);
 				continue;
 			}
 			
-		} else {
-			tryDelete(tempFileName);
+			float new_size = filesystem::file_size(tempFileName) / 1024.0;
+			
+			//overwrite old file
+			if(mode == dbpf::DECOMPRESS || new_size < current_size) {
+				try {
+					filesystem::rename(tempFileName, fileName);
+				}
+				
+				catch(filesystem::filesystem_error) {
+					cout << displayPath << ": Failed to overwrite file" << endl;
+					tryDelete(tempFileName);
+					continue;
+				}
+				
+			} else {
+				tryDelete(tempFileName);
+			}
 		}
 		
-		new_size = filesystem::file_size(fileName) / 1024.0;
+		float new_size = filesystem::file_size(fileName) / 1024.0;
 		
 		//output file size to console
 		cout << displayPath << " " << fixed << setprecision(2);

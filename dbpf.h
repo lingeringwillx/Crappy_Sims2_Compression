@@ -55,7 +55,7 @@ namespace dbpf {
 	}
 	
 	//compression mode
-	enum Mode { COMPRESS, DECOMPRESS, RECOMPRESS };
+	enum Mode { COMPRESS, DECOMPRESS, RECOMPRESS, SKIP };
 
 	//representing one entry (file) inside the package
 	struct Entry {
@@ -107,7 +107,8 @@ namespace dbpf {
 			
 			if(length > 0) {
 				entry.compressed = true;
-				return bytes(newContent.begin(), newContent.begin() + length);
+				newContent.resize(length);
+				return newContent;
 			}
 		}
 		
@@ -134,11 +135,11 @@ namespace dbpf {
 
 	bytes recompressEntry(Entry& entry, bytes& content) {
 		bool wasCompressed = entry.compressed;
-		bytes decompressedContent = decompressEntry(entry, content);
-		bytes compressedContent = compressEntry(entry, decompressedContent);
+		bytes newContent = decompressEntry(entry, content);
+		newContent = compressEntry(entry, newContent);
 		
-		if(compressedContent.size() < content.size()) {
-			return compressedContent;
+		if(newContent.size() < content.size()) {
+			return newContent;
 		} else {
 			//decompression/compression failed, or new compressed entry is larger or equal to old compressed entry
 			entry.compressed = wasCompressed;
@@ -259,6 +260,7 @@ namespace dbpf {
 					CompressedEntry compressedEntry = *iter;
 					if(entry.size != compressedEntry.uncompressedSize) {
 						entry.compressed = true;
+						entry.uncompressedSize = compressedEntry.uncompressedSize;
 					}
 				}
 			}
@@ -319,28 +321,26 @@ namespace dbpf {
 			bytes content = readFile(oldFile, package.entries[i].location, package.entries[i].size);
 			omp_unset_lock(&lock);
 			
-			bytes newContent;
-			
 			if(mode == DECOMPRESS) {
-				newContent = decompressEntry(package.entries[i], content);
+				content = decompressEntry(package.entries[i], content);
 			} else if(mode == RECOMPRESS) {
-				newContent = recompressEntry(package.entries[i], content);
+				content = recompressEntry(package.entries[i], content);
 			} else {
-				newContent = compressEntry(package.entries[i], content);
+				content = compressEntry(package.entries[i], content);
 			}
 			
-			package.entries[i].size = newContent.size();
+			package.entries[i].size = content.size();
 			
 			//we only care about the uncompressed size if the file is compressed
 			if(package.entries[i].compressed) {
 				uint tempPos = 6;
-				package.entries[i].uncompressedSize = getInt24bg(newContent, tempPos);
+				package.entries[i].uncompressedSize = getInt24bg(content, tempPos);
 			}
 			
 			omp_set_lock(&lock);
 			
 			package.entries[i].location = newFile.tellp();
-			writeFile(newFile, newContent);
+			writeFile(newFile, content);
 			
 			omp_unset_lock(&lock);
 		}
