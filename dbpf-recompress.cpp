@@ -177,18 +177,16 @@ int main(int argc, char *argv[]) {
 						break;
 					}
 					
-					if(mode != dbpf::DECOMPRESS) {
-						bytes oldContent = dbpf::readFile(file, oldEntry.location, oldEntry.size);
-						bytes newContent = dbpf::readFile(tempFile, newEntry.location, newEntry.size);
-						
-						oldContent = dbpf::decompressEntry(oldEntry, oldContent);
-						newContent = dbpf::decompressEntry(newEntry, newContent);
-						
-						if(oldContent != newContent) {
-							cout << displayPath << ": Mismatch between old entry and new entry" << endl;
-							validationFailed = true;
-							break;
-						}
+					bytes oldContent = dbpf::readFile(file, oldEntry.location, oldEntry.size);
+					bytes newContent = dbpf::readFile(tempFile, newEntry.location, newEntry.size);
+					
+					oldContent = dbpf::decompressEntry(oldEntry, oldContent);
+					newContent = dbpf::decompressEntry(newEntry, newContent);
+					
+					if(oldContent != newContent) {
+						cout << displayPath << ": Mismatch between old entry and new entry" << endl;
+						validationFailed = true;
+						break;
 					}
 				}
 			}
