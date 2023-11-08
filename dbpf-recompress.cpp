@@ -20,6 +20,7 @@ int main(int argc, char *argv[]) {
 		return 0;
 	}
 	
+	//parse args
 	string arg = argv[1];
 	
 	if(arg == "help") {
@@ -29,7 +30,6 @@ int main(int argc, char *argv[]) {
 		return 0;
 	}
 	
-	//parse args
 	dbpf::Mode mode = dbpf::COMPRESS;
 	int fileArgIndex = 1;
 	
@@ -218,6 +218,10 @@ int main(int argc, char *argv[]) {
 			} else {
 				tryDelete(tempFileName);
 			}
+		}
+		
+		if(mode == dbpf::SKIP) {
+			file.close();
 		}
 		
 		float new_size = filesystem::file_size(fileName) / 1024.0;
