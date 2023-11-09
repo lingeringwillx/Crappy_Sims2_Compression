@@ -376,7 +376,7 @@ namespace dbpf {
 		clst.size = pos;
 		
 		if(clst.size > 0) { 
-			clstContent = bytes(clstContent.begin(), clstContent.begin() + pos);
+			clstContent.resize(clst.size);
 			writeFile(newFile, clstContent);
 			package.entries.push_back(clst);
 		}
