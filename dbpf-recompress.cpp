@@ -105,7 +105,7 @@ int main(int argc, char *argv[]) {
 			bool all_entries_compressed = true;
 			bool compression_can_improve = false;
 			
-			for(auto entry: package.entries) {
+			for(auto& entry: package.entries) {
 				if(!entry.compressed) {
 					all_entries_compressed = false;
 					break;
