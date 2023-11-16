@@ -12,7 +12,7 @@ There is now an experimental release that could be used as a drop-in replacement
 
 1- By utilizing all of the cores of the CPU for compression.
 
-2- By using zlib's level 6 compression parameters instead of level 9.
+2- By using zlib's level 5 compression parameters instead of level 9.
 
 To use it, just download the .exe file and put it in the same directory as The Compressorizer, overwriting the old file.
 
