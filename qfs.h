@@ -186,11 +186,11 @@ static int qfs_compress(const unsigned char* src, int srclen, unsigned char* dst
 
 #define MIN_LOOKAHEAD (MAX_MATCH+MIN_MATCH+1)
 
-// corresponds to zlib compression level 6
+// corresponds to zlib compression level 5
 #define GOOD_LENGTH 8
 #define MAX_LAZY    16
-#define NICE_LENGTH 128
-#define MAX_CHAIN   128
+#define NICE_LENGTH 32
+#define MAX_CHAIN   32
 
 #define HASH_BITS 16
 #define HASH_SIZE 65536

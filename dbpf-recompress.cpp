@@ -46,6 +46,7 @@ int main(int argc, char *argv[]) {
 	string pathName = argv[fileArgIndex];
 	
 	auto files = vector<filesystem::directory_entry>();
+	bool is_dir = false;
 	
 	if(filesystem::is_regular_file(pathName)) {
 		auto file_entry = filesystem::directory_entry(pathName);
@@ -57,7 +58,7 @@ int main(int argc, char *argv[]) {
 		files.push_back(file_entry);
 		
 	} else if(filesystem::is_directory(pathName)) {
-		
+		is_dir = true;
 		for(auto& dir_entry: filesystem::recursive_directory_iterator(pathName)) {
 			if(dir_entry.is_regular_file() && dir_entry.path().extension() == ".package") {
 				files.push_back(dir_entry);
@@ -77,10 +78,11 @@ int main(int argc, char *argv[]) {
 		float current_size = dir_entry.file_size() / 1024.0;
 		
 		string displayPath; //for cout
-		if(filesystem::is_regular_file(pathName)) {
-			displayPath = fileName;
-		} else {
+		
+		if(is_dir) {
 			displayPath = filesystem::relative(fileName, pathName).string();
+		} else {
+			displayPath = fileName;
 		}
 		
 		fstream file = fstream(fileName, ios::in | ios::binary);
