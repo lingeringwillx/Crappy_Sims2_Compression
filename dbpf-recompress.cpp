@@ -1,5 +1,8 @@
 #include "dbpf.h"
 
+#include <fcntl.h>
+#include <io.h>
+
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -9,41 +12,114 @@
 
 using namespace std;
 
-void tryDelete(string fileName) {
+void tryDelete(wstring fileName) {
 	try { filesystem::remove(fileName); }
 	catch(filesystem::filesystem_error) {}
 }
 
-int main(int argc, char *argv[]) {
+bool validatePackage(dbpf::Package& oldPackage, dbpf::Package& newPackage, fstream& oldFile, fstream& newFile, wstring displayPath) {
+	if(!newPackage.unpacked) {
+		wcout << displayPath << L": Failed to load new package" << endl;
+		return false;
+	}
+	
+	bytes oldHeader = dbpf::readFile(oldFile, 0, 96);
+	bytes newHeader = dbpf::readFile(newFile, 0, 96);
+	
+	if(bytes(oldHeader.begin(), oldHeader.begin() + 36) != bytes(newHeader.begin(), newHeader.begin() + 36)
+	|| bytes(oldHeader.begin() + 60, oldHeader.end()) != bytes(newHeader.begin() + 60, newHeader.end())) {
+		wcout << displayPath << L": New header does not match the old header" << endl;
+		return false;
+	}
+	
+	for(uint i = 48; i < 60; i++) {
+		if(newHeader[i] != 0) {
+			wcout << displayPath << L": Hole index info not set to zero" << endl;
+			return false;
+		}
+	}
+	
+	if(oldPackage.entries.size() != newPackage.entries.size()) {
+		wcout << displayPath << L": Number of entries between old package and new package not matching" << endl;
+		return false;
+	}
+	
+	for(int i = 0; i < oldPackage.entries.size(); i++) {
+		auto& oldEntry = oldPackage.entries[i];
+		auto& newEntry = newPackage.entries[i];
+		
+		if(oldEntry.type != newEntry.type || oldEntry.group != newEntry.group || oldEntry.instance != newEntry.instance || oldEntry.resource != newEntry.resource) {
+			wcout << displayPath << L": Types, groups, instances, or resources of entries not matching" << endl;
+			return false;
+		}
+		
+		bytes oldContent = dbpf::readFile(oldFile, oldEntry.location, oldEntry.size);
+		bytes newContent = dbpf::readFile(newFile, newEntry.location, newEntry.size);
+		
+		bool compressed_in_header = newContent[4] == 0x10 && newContent[5] == 0xFB;
+		bool in_clst = newPackage.compressedEntries.find(dbpf::CompressedEntry{newEntry.type, newEntry.group, newEntry.instance, newEntry.resource}) != newPackage.compressedEntries.end();
+		
+		if(compressed_in_header != in_clst) {
+			wcout << displayPath << L": Incorrect compression information" << endl;
+			return false;
+		}
+		
+		if(newEntry.compressed) {
+			uint tempPos = 0;
+			uint uncompressedSize = dbpf::getUncompressedSize(newContent);
+			uint compressedSize = dbpf::getInt32le(newContent, tempPos);
+			
+			if(compressedSize > uncompressedSize) {
+				wcout << displayPath << L": Compressed size is larger than the uncompressed size for one entry" << endl;
+				return false;
+			}
+		}
+		
+		oldContent = dbpf::decompressEntry(oldEntry, oldContent);
+		newContent = dbpf::decompressEntry(newEntry, newContent);
+		
+		if(oldContent != newContent) {
+			wcout << displayPath << L": Mismatch between old entry and new entry" << endl;
+			return false;
+		}
+	}
+	
+	return true;
+}
+
+//using wide chars and wide strings to support UTF-16 file names
+int wmain(int argc, wchar_t *argv[]) {
+	_setmode(_fileno(stdout), _O_U16TEXT); //fix for wcout
+	
 	if(argc == 1) {
-		cout << "No arguments provided" << endl;
+		wcout << L"No arguments provided" << endl;
 		return 0;
 	}
 	
 	//parse args
-	string arg = argv[1];
+	wstring arg = argv[1];
 	
-	if(arg == "help") {
-		cout << "dbpf-recompress.exe -args package_file_or_folder" << endl;
-		cout << "  -d  decompress" << endl;
-		cout << endl;
+	if(arg == L"help") {
+		wcout << L"dbpf-recompress.exe -args package_file_or_folder" << endl;
+		wcout << L"  -d  decompress" << endl;
+		wcout << endl;
 		return 0;
 	}
 	
-	dbpf::Mode mode = dbpf::COMPRESS;
+	dbpf::Mode mode = dbpf::RECOMPRESS;
 	int fileArgIndex = 1;
 	
-	if(arg == "-d") {
+	if(arg == L"-d") {
 		mode = dbpf::DECOMPRESS;
 		fileArgIndex = 2;
 	}
 	
 	if(fileArgIndex > argc - 1) {
-		cout << "No file path provided" << endl;
+		wcout << L"No file path provided" << endl;
 		return 0;
 	}
 	
-	string pathName = argv[fileArgIndex];
+	wstring pathName = argv[fileArgIndex];
 	
 	auto files = vector<filesystem::directory_entry>();
 	bool is_dir = false;
@@ -51,7 +127,7 @@ int main(int argc, char *argv[]) {
 	if(filesystem::is_regular_file(pathName)) {
 		auto file_entry = filesystem::directory_entry(pathName);
 		if(file_entry.path().extension() != ".package") {
-			cout << "Not a package file" << endl;
+			wcout << L"Not a package file" << endl;
 			return 0;
 		}
 		
@@ -66,21 +142,21 @@ int main(int argc, char *argv[]) {
 		}
 		
 	} else {
-		cout << "File not found" << endl;
+		wcout << L"File not found" << endl;
 		return 0;
 	}
 	
 	for(auto& dir_entry: files) {
 		//open file
-		string fileName = dir_entry.path().string();
-		string tempFileName = fileName + ".new";
+		wstring fileName = dir_entry.path().wstring();
+		wstring tempFileName = fileName + L".new";
 		
 		float current_size = dir_entry.file_size() / 1024.0;
 		
-		string displayPath; //for cout
+		wstring displayPath; //for cout
 		
 		if(is_dir) {
-			displayPath = filesystem::relative(fileName, pathName).string();
+			displayPath = filesystem::relative(fileName, pathName).wstring();
 		} else {
 			displayPath = fileName;
 		}
@@ -88,24 +164,22 @@ int main(int argc, char *argv[]) {
 		fstream file = fstream(fileName, ios::in | ios::binary);
 		
 		if(!file.is_open()) {
-			cout << displayPath << ": Failed to open file" << endl;
+			wcout << displayPath << L": Failed to open file" << endl;
 			continue;
 		}
 		
 		//get package
 		dbpf::Package oldPackage = dbpf::getPackage(file, displayPath);
-		dbpf::Package package = dbpf::Package{oldPackage.indexVersion, oldPackage.entries};
+		dbpf::Package package = oldPackage; //copy
 		
 		//error unpacking package
-		if(package.indexVersion == -1) {
+		if(!package.unpacked) {
 			file.close();
 			continue;
 		}
 		
-		//find proper compression mode
-		if(mode != dbpf::DECOMPRESS) {
+		if(mode != dbpf::DECOMPRESS && mode != dbpf::RECOMPRESS) {
 			bool all_entries_compressed = true;
-			bool compression_can_improve = false;
 			
 			for(auto& entry: package.entries) {
 				if(!entry.compressed) {
@@ -114,28 +188,8 @@ int main(int argc, char *argv[]) {
 				}
 			}
 			
-			//try to recompress one large entry that's already compressed and find out if we're gonna get a smaller size
-			for(auto entry: package.entries) {
-				if(entry.compressed && entry.uncompressedSize >= 100000) {
-					bytes content = dbpf::readFile(file, entry.location, entry.size);
-					content = dbpf::recompressEntry(entry, content);
-						
-					if(content.size() < entry.size) {
-						compression_can_improve = true;
-					}
-					
-					break;
-				}
-			}
-			
-			if(compression_can_improve) {
-				mode = dbpf::RECOMPRESS;
-			} else {
-				if(all_entries_compressed) {
-					mode = dbpf::SKIP;
-				} else {
-					mode = dbpf::COMPRESS;
-				}
+			if(all_entries_compressed) {
+				mode = dbpf::SKIP;
 			}
 		}
 		
@@ -147,56 +201,20 @@ int main(int argc, char *argv[]) {
 				dbpf::putPackage(tempFile, file, package, mode);
 				
 			} else {
-				cout << displayPath << ": Failed to create temp file" << endl;
+				wcout << displayPath << L": Failed to create temp file" << endl;
 				file.close();
 				continue;
 			}
 			
 			//validate new file
 			tempFile.seekg(0, ios::beg);
-			dbpf::Package newPackage = dbpf::getPackage(tempFile, displayPath + ".new");
-			
-			bool validationFailed = false;
-			
-			if(!validationFailed && newPackage.indexVersion == -1) {
-				cout << displayPath << ": Failed to load new package" << endl;
-				validationFailed = true;
-			}
-			
-			if(!validationFailed && (oldPackage.entries.size() != newPackage.entries.size())) {
-				cout << displayPath << ": Number of entries between old package and new package not matching" << endl;
-				validationFailed = true;
-			}
-			
-			if(!validationFailed) {
-				for(int i = 0; i < oldPackage.entries.size(); i++) {
-					auto& oldEntry = oldPackage.entries[i];
-					auto& newEntry = newPackage.entries[i];
-					
-					if(oldEntry.type != newEntry.type || oldEntry.group != newEntry.group || oldEntry.instance != newEntry.instance || oldEntry.resource != newEntry.resource) {
-						cout << displayPath << ": Types, groups, instances, or resources of entries not matching" << endl;
-						validationFailed = true;
-						break;
-					}
-					
-					bytes oldContent = dbpf::readFile(file, oldEntry.location, oldEntry.size);
-					bytes newContent = dbpf::readFile(tempFile, newEntry.location, newEntry.size);
-					
-					oldContent = dbpf::decompressEntry(oldEntry, oldContent);
-					newContent = dbpf::decompressEntry(newEntry, newContent);
-					
-					if(oldContent != newContent) {
-						cout << displayPath << ": Mismatch between old entry and new entry" << endl;
-						validationFailed = true;
-						break;
-					}
-				}
-			}
+			dbpf::Package newPackage = dbpf::getPackage(tempFile, tempFileName);
+			bool is_valid = validatePackage(oldPackage, newPackage, file, tempFile, displayPath);
 			
 			file.close();
 			tempFile.close();
 			
-			if(validationFailed) {
+			if(!is_valid) {
 				tryDelete(tempFileName);
 				continue;
 			}
@@ -210,7 +228,7 @@ int main(int argc, char *argv[]) {
 				}
 				
 				catch(filesystem::filesystem_error) {
-					cout << displayPath << ": Failed to overwrite file" << endl;
+					wcout << displayPath << L": Failed to overwrite file" << endl;
 					tryDelete(tempFileName);
 					continue;
 				}
@@ -227,25 +245,25 @@ int main(int argc, char *argv[]) {
 		float new_size = filesystem::file_size(fileName) / 1024.0;
 		
 		//output file size to console
-		cout << displayPath << " " << fixed << setprecision(2);
+		wcout << displayPath << L" " << fixed << setprecision(2);
 		
 		if(current_size >= 1000) {
-			cout << current_size / 1024.0 << " MB";
+			wcout << current_size / 1024.0 << L" MB";
 		} else {
-			cout << current_size << " KB";
+			wcout << current_size << L" KB";
 		}
 		
-		cout << " -> ";
+		wcout << " -> ";
 		
 		if(new_size >= 1000) {
-			cout << new_size / 1024.0 << " MB";
+			wcout << new_size / 1024.0 << L" MB";
 		} else {
-			cout << new_size << " KB";
+			wcout << new_size << L" KB";
 		}
 		
-		cout << endl;
+		wcout << endl;
 	}
 	
-	cout << endl;
+	wcout << endl;
 	return 0;
 }
