@@ -44,7 +44,7 @@ bool validatePackage(dbpf::Package& oldPackage, dbpf::Package& newPackage, fstre
 		return false;
 	}
 	
-	for(int i = 0; i < oldPackage.entries.size(); i++) {
+	for(uint i = 0; i < oldPackage.entries.size(); i++) {
 		auto& oldEntry = oldPackage.entries[i];
 		auto& newEntry = newPackage.entries[i];
 		
@@ -178,7 +178,7 @@ int wmain(int argc, wchar_t *argv[]) {
 			continue;
 		}
 		
-		if(mode != dbpf::DECOMPRESS && mode != dbpf::RECOMPRESS) {
+		if(mode == dbpf::COMPRESS) {
 			bool all_entries_compressed = true;
 			
 			for(auto& entry: package.entries) {
