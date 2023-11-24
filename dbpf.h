@@ -202,7 +202,7 @@ namespace dbpf {
 		bytes buffer = readFile(file, 0, 96);
 		uint pos = 0;
 		
-		//package file magic header "DBPF" should the first 4 bytes of any dbpf package file
+		//package file magic header "DBPF" should be the first 4 bytes of any dbpf package file
 		uint magic = getInt(buffer, pos);
 		if(magic != DBPF_MAGIC) {
 			wcout << displayPath << L": DBPF_MAGIC header not found" << endl;
