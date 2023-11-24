@@ -6,8 +6,6 @@
 
 Usage: `dbpf-recompress -args package_file_or_folder`
 
-Benchmark: `python benchmark.py package_file`
-
 There is now an experimental release that could be used as a drop-in replacement for The Compressorizer's original executable. It achieves faster compression in the following ways:
 
 1- By utilizing all of the cores of the CPU for compression.
