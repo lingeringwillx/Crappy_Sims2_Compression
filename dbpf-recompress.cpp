@@ -12,124 +12,12 @@
 
 using namespace std;
 
+bool validatePackage(dbpf::Package& oldPackage, dbpf::Package& newPackage, fstream& oldFile, fstream& newFile, wstring displayPath, dbpf::Mode mode);
+
 //trys to delete a file, fails silently
 void tryDelete(wstring fileName) {
 	try { filesystem::remove(fileName); }
 	catch(filesystem::filesystem_error) {}
-}
-
-//checks if a new package file is valid
-bool validatePackage(dbpf::Package& oldPackage, dbpf::Package& newPackage, fstream& oldFile, fstream& newFile, wstring displayPath, dbpf::Mode mode) {
-	//package unpacking failed, getPackage already prints an error
-	if(!newPackage.unpacked) {
-		return false;
-	}
-	
-	//compare headers
-	bytes oldHeader = dbpf::readFile(oldFile, 0, 96);
-	bytes newHeader = dbpf::readFile(newFile, 0, 96);
-	
-	if(bytes(oldHeader.begin(), oldHeader.begin() + 36) != bytes(newHeader.begin(), newHeader.begin() + 36)
-	|| bytes(oldHeader.begin() + 60, oldHeader.end()) != bytes(newHeader.begin() + 60, newHeader.end())) {
-		wcout << displayPath << L": New header does not match the old header" << endl;
-		return false;
-	}
-	
-	//should only have one hole for the compressor signature
-	if(newPackage.header.holeIndexEntryCount != 1) {
-		wcout << displayPath << L": Wrong hole index count" << endl;
-		return false;
-	}
-	
-	//one hole index entry is 8 bytes long
-	if(newPackage.header.holeIndexSize != 8) {
-		wcout << displayPath << L": Wrong hole index size" << endl;
-		return false;
-	}
-	
-	dbpf::Hole hole = newPackage.holes[0];
-	
-	//compressor signature is 8 bytes long
-	if(hole.size != 8) {
-		wcout << L": Wrong hole index content" << endl;
-		return false;
-	}
-	
-	bytes holeData = dbpf::readFile(newFile, hole.location, 8);
-	uint pos = 0;
-	
-	uint sig = dbpf::getInt(holeData, pos);
-	
-	//if the file was compressed then the signature should be "brg5", if the file was decompressed then the signature should be 0
-	if(!((mode != dbpf::DECOMPRESS && sig == dbpf::SIGNATURE) || (mode == dbpf::DECOMPRESS && sig == 0))) {
-		wcout << displayPath << L": Compressor signature not found" << endl;
-		return false;
-	}
-	
-	uint fileSizeInHole = dbpf::getInt(holeData, pos);
-	uint fileSize = dbpf::getFileSize(newFile);
-	
-	//file size written in the hole should match the actual file size
-	if(fileSizeInHole != fileSize) {
-		wcout << displayPath << L": File size in signature does not match the actual file size" << endl;
-		return false;
-	}
-	
-	//should have the exact number of entries as the original package
-	//NOTE: getPackage doen not include the directory compressed files entry in the entries vector for both packages
-	if(oldPackage.entries.size() != newPackage.entries.size()) {
-		wcout << displayPath << L": Number of entries between old package and new package not matching" << endl;
-		return false;
-	}
-	
-	//compare entries
-	for(uint i = 0; i < oldPackage.entries.size(); i++) {
-		auto& oldEntry = oldPackage.entries[i];
-		auto& newEntry = newPackage.entries[i];
-		
-		//compare TGIRs
-		if(oldEntry.type != newEntry.type || oldEntry.group != newEntry.group || oldEntry.instance != newEntry.instance || oldEntry.resource != newEntry.resource) {
-			wcout << displayPath << L": Types, groups, instances, or resources of entries not matching" << endl;
-			return false;
-		}
-		
-		//check entry content
-		bytes oldContent = dbpf::readFile(oldFile, oldEntry.location, oldEntry.size);
-		bytes newContent = dbpf::readFile(newFile, newEntry.location, newEntry.size);
-		
-		//compression info in the directory of compressed files should match the information in the compression header
-		bool compressed_in_header = newContent[4] == 0x10 && newContent[5] == 0xFB;
-		bool in_clst = newPackage.compressedEntries.find(dbpf::CompressedEntry{newEntry.type, newEntry.group, newEntry.instance, newEntry.resource}) != newPackage.compressedEntries.end();
-		
-		if(compressed_in_header != in_clst) {
-			wcout << displayPath << L": Incorrect compression information" << endl;
-			return false;
-		}
-		
-		//the compressor should only produce compressed entries that are smaller than the original decompressed entries
-		if(newEntry.compressed) {
-			uint tempPos = 0;
-			uint uncompressedSize = dbpf::getUncompressedSize(newContent);
-			uint compressedSize = dbpf::getInt(newContent, tempPos);
-			
-			if(compressedSize > uncompressedSize) {
-				wcout << displayPath << L": Compressed size is larger than the uncompressed size for one entry" << endl;
-				return false;
-			}
-		}
-		
-		//decompress the entries and compare them
-		oldContent = dbpf::decompressEntry(oldEntry, oldContent);
-		newContent = dbpf::decompressEntry(newEntry, newContent);
-		
-		if(oldContent != newContent) {
-			wcout << displayPath << L": Mismatch between old entry and new entry" << endl;
-			return false;
-		}
-	}
-	
-	//if all passes then return true
-	return true;
 }
 
 //using wide chars and wide strings to support UTF-16 file names
@@ -330,4 +218,118 @@ int wmain(int argc, wchar_t *argv[]) {
 	
 	wcout << endl;
 	return 0;
+}
+
+//checks if a new package file is valid
+bool validatePackage(dbpf::Package& oldPackage, dbpf::Package& newPackage, fstream& oldFile, fstream& newFile, wstring displayPath, dbpf::Mode mode) {
+	//package unpacking failed, getPackage already prints an error
+	if(!newPackage.unpacked) {
+		return false;
+	}
+	
+	//compare headers
+	bytes oldHeader = dbpf::readFile(oldFile, 0, 96);
+	bytes newHeader = dbpf::readFile(newFile, 0, 96);
+	
+	if(bytes(oldHeader.begin(), oldHeader.begin() + 36) != bytes(newHeader.begin(), newHeader.begin() + 36)
+	|| bytes(oldHeader.begin() + 60, oldHeader.end()) != bytes(newHeader.begin() + 60, newHeader.end())) {
+		wcout << displayPath << L": New header does not match the old header" << endl;
+		return false;
+	}
+	
+	//should only have one hole for the compressor signature
+	if(newPackage.header.holeIndexEntryCount != 1) {
+		wcout << displayPath << L": Wrong hole index count" << endl;
+		return false;
+	}
+	
+	//one hole index entry is 8 bytes long
+	if(newPackage.header.holeIndexSize != 8) {
+		wcout << displayPath << L": Wrong hole index size" << endl;
+		return false;
+	}
+	
+	dbpf::Hole hole = newPackage.holes[0];
+	
+	//compressor signature is 8 bytes long
+	if(hole.size != 8) {
+		wcout << L": Wrong hole index content" << endl;
+		return false;
+	}
+	
+	bytes holeData = dbpf::readFile(newFile, hole.location, 8);
+	uint pos = 0;
+	
+	uint sig = dbpf::getInt(holeData, pos);
+	
+	//if the file was compressed then the signature should be "BRG5", if the file was decompressed then the signature should be 0
+	if(!((mode != dbpf::DECOMPRESS && sig == dbpf::SIGNATURE) || (mode == dbpf::DECOMPRESS && sig == 0))) {
+		wcout << displayPath << L": Compressor signature not found" << endl;
+		return false;
+	}
+	
+	uint fileSizeInHole = dbpf::getInt(holeData, pos);
+	uint fileSize = dbpf::getFileSize(newFile);
+	
+	//file size written in the hole should match the actual file size
+	if(fileSizeInHole != fileSize) {
+		wcout << displayPath << L": File size in signature does not match the actual file size" << endl;
+		return false;
+	}
+	
+	//should have the exact number of entries as the original package
+	//NOTE: getPackage doen not include the directory compressed files entry in the entries vector for both packages
+	if(oldPackage.entries.size() != newPackage.entries.size()) {
+		wcout << displayPath << L": Number of entries between old package and new package not matching" << endl;
+		return false;
+	}
+	
+	//compare entries
+	for(uint i = 0; i < oldPackage.entries.size(); i++) {
+		auto& oldEntry = oldPackage.entries[i];
+		auto& newEntry = newPackage.entries[i];
+		
+		//compare TGIRs
+		if(oldEntry.type != newEntry.type || oldEntry.group != newEntry.group || oldEntry.instance != newEntry.instance || oldEntry.resource != newEntry.resource) {
+			wcout << displayPath << L": Types, groups, instances, or resources of entries not matching" << endl;
+			return false;
+		}
+		
+		//check entry content
+		bytes oldContent = dbpf::readFile(oldFile, oldEntry.location, oldEntry.size);
+		bytes newContent = dbpf::readFile(newFile, newEntry.location, newEntry.size);
+		
+		//compression info in the directory of compressed files should match the information in the compression header
+		bool compressed_in_header = newContent[4] == 0x10 && newContent[5] == 0xFB;
+		bool in_clst = newPackage.compressedEntries.find(dbpf::CompressedEntry{newEntry.type, newEntry.group, newEntry.instance, newEntry.resource}) != newPackage.compressedEntries.end();
+		
+		if(compressed_in_header != in_clst) {
+			wcout << displayPath << L": Incorrect compression information" << endl;
+			return false;
+		}
+		
+		//the compressor should only produce compressed entries that are smaller than the original decompressed entries
+		if(newEntry.compressed) {
+			uint tempPos = 0;
+			uint uncompressedSize = dbpf::getUncompressedSize(newContent);
+			uint compressedSize = dbpf::getInt(newContent, tempPos);
+			
+			if(compressedSize > uncompressedSize) {
+				wcout << displayPath << L": Compressed size is larger than the uncompressed size for one entry" << endl;
+				return false;
+			}
+		}
+		
+		//decompress the entries and compare them
+		oldContent = dbpf::decompressEntry(oldEntry, oldContent);
+		newContent = dbpf::decompressEntry(newEntry, newContent);
+		
+		if(oldContent != newContent) {
+			wcout << displayPath << L": Mismatch between old entry and new entry" << endl;
+			return false;
+		}
+	}
+	
+	//if all passes then return true
+	return true;
 }

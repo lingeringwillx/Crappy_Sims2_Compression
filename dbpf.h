@@ -18,7 +18,7 @@ typedef vector<unsigned char> bytes;
 
 namespace dbpf {
 	const uint DBPF_MAGIC = 0x46504244; //"DBPF"
-	const uint SIGNATURE = 0x35677262 ; //"brg5"
+	const uint SIGNATURE = 0x35475242 ; //"BRG5"
 	
 	uint getFileSize(fstream& file) {
 		uint pos = file.tellg();
@@ -296,10 +296,10 @@ namespace dbpf {
 		holes are junk data, a placeholder for when the game deletes a specific entry, and are ignored by the game and by most unpacking tools, however here we are exploiting them to store some information
 		
 		signature format is:
-			DWORD signature = 0 if the file is decompressed, "brg5" if the file is compressed
+			DWORD signature = 0 if the file is decompressed, "BRG5" if the file is compressed
 			DWORD file size
 			
-		"brg5" refers to the compression algorithm used by this compressor, which is an implementation of EA's Refpack/QFS compression algorithm written by Ben Rudiak-Gould adjusted to use zlib's level 5 compression parameters
+		"BRG5" refers to the compression algorithm used by this compressor, which is an implementation of EA's Refpack/QFS compression algorithm written by Ben Rudiak-Gould adjusted to use zlib's level 5 compression parameters
 			
 		if the signature is found and the file size has not changed then we can skip the file
 		*/
@@ -386,7 +386,6 @@ namespace dbpf {
 			for(auto& entry: package.entries) {
 				auto iter = package.compressedEntries.find(CompressedEntry{entry.type, entry.group, entry.instance, entry.resource});
 				if(entry.size > 9 && iter != package.compressedEntries.end()) {
-					//this is slow, but unavoidable??
 					bytes header = readFile(file, entry.location, 9);
 					
 					if(header[4] == 0x10 && header[5] == 0xFB) {
