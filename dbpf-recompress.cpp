@@ -12,17 +12,20 @@
 
 using namespace std;
 
+//trys to delete a file, fails silently
 void tryDelete(wstring fileName) {
 	try { filesystem::remove(fileName); }
 	catch(filesystem::filesystem_error) {}
 }
 
-bool validatePackage(dbpf::Package& oldPackage, dbpf::Package& newPackage, fstream& oldFile, fstream& newFile, wstring displayPath) {
+//checks if a new package file is valid
+bool validatePackage(dbpf::Package& oldPackage, dbpf::Package& newPackage, fstream& oldFile, fstream& newFile, wstring displayPath, dbpf::Mode mode) {
+	//package unpacking failed, getPackage already prints an error
 	if(!newPackage.unpacked) {
-		wcout << displayPath << L": Failed to load new package" << endl;
 		return false;
 	}
 	
+	//compare headers
 	bytes oldHeader = dbpf::readFile(oldFile, 0, 96);
 	bytes newHeader = dbpf::readFile(newFile, 0, 96);
 	
@@ -32,30 +35,69 @@ bool validatePackage(dbpf::Package& oldPackage, dbpf::Package& newPackage, fstre
 		return false;
 	}
 	
-	for(uint i = 48; i < 60; i++) {
-		if(newHeader[i] != 0) {
-			wcout << displayPath << L": Hole index info not set to zero" << endl;
-			return false;
-		}
+	//should only have one hole for the compressor signature
+	if(newPackage.header.holeIndexEntryCount != 1) {
+		wcout << displayPath << L": Wrong hole index count" << endl;
+		return false;
 	}
 	
+	//one hole index entry is 8 bytes long
+	if(newPackage.header.holeIndexSize != 8) {
+		wcout << displayPath << L": Wrong hole index size" << endl;
+		return false;
+	}
+	
+	dbpf::Hole hole = newPackage.holes[0];
+	
+	//compressor signature is 8 bytes long
+	if(hole.size != 8) {
+		wcout << L": Wrong hole index content" << endl;
+		return false;
+	}
+	
+	bytes holeData = dbpf::readFile(newFile, hole.location, 8);
+	uint pos = 0;
+	
+	uint sig = dbpf::getInt(holeData, pos);
+	
+	//if the file was compressed then the signature should be "brg5", if the file was decompressed then the signature should be 0
+	if(!((mode != dbpf::DECOMPRESS && sig == dbpf::SIGNATURE) || (mode == dbpf::DECOMPRESS && sig == 0))) {
+		wcout << displayPath << L": Compressor signature not found" << endl;
+		return false;
+	}
+	
+	uint fileSizeInHole = dbpf::getInt(holeData, pos);
+	uint fileSize = dbpf::getFileSize(newFile);
+	
+	//file size written in the hole should match the actual file size
+	if(fileSizeInHole != fileSize) {
+		wcout << displayPath << L": File size in signature does not match the actual file size" << endl;
+		return false;
+	}
+	
+	//should have the exact number of entries as the original package
+	//NOTE: getPackage doen not include the directory compressed files entry in the entries vector for both packages
 	if(oldPackage.entries.size() != newPackage.entries.size()) {
 		wcout << displayPath << L": Number of entries between old package and new package not matching" << endl;
 		return false;
 	}
 	
+	//compare entries
 	for(uint i = 0; i < oldPackage.entries.size(); i++) {
 		auto& oldEntry = oldPackage.entries[i];
 		auto& newEntry = newPackage.entries[i];
 		
+		//compare TGIRs
 		if(oldEntry.type != newEntry.type || oldEntry.group != newEntry.group || oldEntry.instance != newEntry.instance || oldEntry.resource != newEntry.resource) {
 			wcout << displayPath << L": Types, groups, instances, or resources of entries not matching" << endl;
 			return false;
 		}
 		
+		//check entry content
 		bytes oldContent = dbpf::readFile(oldFile, oldEntry.location, oldEntry.size);
 		bytes newContent = dbpf::readFile(newFile, newEntry.location, newEntry.size);
 		
+		//compression info in the directory of compressed files should match the information in the compression header
 		bool compressed_in_header = newContent[4] == 0x10 && newContent[5] == 0xFB;
 		bool in_clst = newPackage.compressedEntries.find(dbpf::CompressedEntry{newEntry.type, newEntry.group, newEntry.instance, newEntry.resource}) != newPackage.compressedEntries.end();
 		
@@ -64,10 +106,11 @@ bool validatePackage(dbpf::Package& oldPackage, dbpf::Package& newPackage, fstre
 			return false;
 		}
 		
+		//the compressor should only produce compressed entries that are smaller than the original decompressed entries
 		if(newEntry.compressed) {
 			uint tempPos = 0;
 			uint uncompressedSize = dbpf::getUncompressedSize(newContent);
-			uint compressedSize = dbpf::getInt32le(newContent, tempPos);
+			uint compressedSize = dbpf::getInt(newContent, tempPos);
 			
 			if(compressedSize > uncompressedSize) {
 				wcout << displayPath << L": Compressed size is larger than the uncompressed size for one entry" << endl;
@@ -75,6 +118,7 @@ bool validatePackage(dbpf::Package& oldPackage, dbpf::Package& newPackage, fstre
 			}
 		}
 		
+		//decompress the entries and compare them
 		oldContent = dbpf::decompressEntry(oldEntry, oldContent);
 		newContent = dbpf::decompressEntry(newEntry, newContent);
 		
@@ -84,6 +128,7 @@ bool validatePackage(dbpf::Package& oldPackage, dbpf::Package& newPackage, fstre
 		}
 	}
 	
+	//if all passes then return true
 	return true;
 }
 
@@ -106,11 +151,11 @@ int wmain(int argc, wchar_t *argv[]) {
 		return 0;
 	}
 	
-	dbpf::Mode mode = dbpf::RECOMPRESS;
+	dbpf::Mode default_mode = dbpf::RECOMPRESS;
 	int fileArgIndex = 1;
 	
 	if(arg == L"-d") {
-		mode = dbpf::DECOMPRESS;
+		default_mode = dbpf::DECOMPRESS;
 		fileArgIndex = 2;
 	}
 	
@@ -147,6 +192,8 @@ int wmain(int argc, wchar_t *argv[]) {
 	}
 	
 	for(auto& dir_entry: files) {
+		auto mode = default_mode;
+		
 		//open file
 		wstring fileName = dir_entry.path().wstring();
 		wstring tempFileName = fileName + L".new";
@@ -169,15 +216,22 @@ int wmain(int argc, wchar_t *argv[]) {
 		}
 		
 		//get package
-		dbpf::Package oldPackage = dbpf::getPackage(file, displayPath);
+		dbpf::Package oldPackage = dbpf::getPackage(file, displayPath, mode);
 		dbpf::Package package = oldPackage; //copy
 		
+		//optimization: if the package file has the compressor's signature then skip it
+		if(package.signature_in_package) {
+			mode = dbpf::SKIP;
+			file.close();
+		
 		//error unpacking package
-		if(!package.unpacked) {
+		} else if(!package.unpacked) {
 			file.close();
 			continue;
 		}
 		
+		//optimization: for COMPRESS mode skip the package file if all of it's entries are compressed
+		//note: this is not the default mode
 		if(mode == dbpf::COMPRESS) {
 			bool all_entries_compressed = true;
 			
@@ -190,6 +244,23 @@ int wmain(int argc, wchar_t *argv[]) {
 			
 			if(all_entries_compressed) {
 				mode = dbpf::SKIP;
+				file.close();
+			}
+			
+		//optimization: for DECOMPRESS mode skip the package file if all of it's entries are decompressed
+		} else if(mode == dbpf::DECOMPRESS) {
+			bool all_entries_decompressed = true;
+			
+			for(auto& entry: package.entries) {
+				if(entry.compressed) {
+					all_entries_decompressed = false;
+					break;
+				}
+			}
+			
+			if(all_entries_decompressed) {
+				mode = dbpf::SKIP;
+				file.close();
 			}
 		}
 		
@@ -208,8 +279,10 @@ int wmain(int argc, wchar_t *argv[]) {
 			
 			//validate new file
 			tempFile.seekg(0, ios::beg);
-			dbpf::Package newPackage = dbpf::getPackage(tempFile, tempFileName);
-			bool is_valid = validatePackage(oldPackage, newPackage, file, tempFile, displayPath);
+			
+			//VALIDATE mode is a quick hack that makes getPackage finish unpacking even if the compressor's signature is found
+			dbpf::Package newPackage = dbpf::getPackage(tempFile, tempFileName, dbpf::VALIDATE);
+			bool is_valid = validatePackage(oldPackage, newPackage, file, tempFile, displayPath, mode);
 			
 			file.close();
 			tempFile.close();
@@ -222,24 +295,15 @@ int wmain(int argc, wchar_t *argv[]) {
 			float new_size = filesystem::file_size(tempFileName) / 1024.0;
 			
 			//overwrite old file
-			if(mode == dbpf::DECOMPRESS || new_size < current_size) {
-				try {
-					filesystem::rename(tempFileName, fileName);
-				}
-				
-				catch(filesystem::filesystem_error) {
-					wcout << displayPath << L": Failed to overwrite file" << endl;
-					tryDelete(tempFileName);
-					continue;
-				}
-				
-			} else {
-				tryDelete(tempFileName);
+			try {
+				filesystem::rename(tempFileName, fileName);
 			}
-		}
-		
-		if(mode == dbpf::SKIP) {
-			file.close();
+			
+			catch(filesystem::filesystem_error) {
+				wcout << displayPath << L": Failed to overwrite file" << endl;
+				tryDelete(tempFileName);
+				continue;
+			}
 		}
 		
 		float new_size = filesystem::file_size(fileName) / 1024.0;
