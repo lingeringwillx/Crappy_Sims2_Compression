@@ -382,7 +382,7 @@ namespace dbpf {
 				package.compressedEntries.insert(CompressedEntry{type, group, instance, resource, uncompressedSize});
 			}
 			
-			//check if entries are compressed
+			//check if the entries are compressed
 			for(auto& entry: package.entries) {
 				auto iter = package.compressedEntries.find(CompressedEntry{entry.type, entry.group, entry.instance, entry.resource});
 				if(entry.size > 9 && iter != package.compressedEntries.end()) {

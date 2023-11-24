@@ -168,7 +168,7 @@ int wmain(int argc, wchar_t *argv[]) {
 			//validate new file
 			tempFile.seekg(0, ios::beg);
 			
-			//VALIDATE mode is a quick hack that makes getPackage finish unpacking even if the compressor's signature is found
+			//VALIDATE mode is a quick hack that makes getPackage finish unpacking even if the compressor's signature is not found
 			dbpf::Package newPackage = dbpf::getPackage(tempFile, tempFileName, dbpf::VALIDATE);
 			bool is_valid = validatePackage(oldPackage, newPackage, file, tempFile, displayPath, mode);
 			
@@ -220,7 +220,7 @@ int wmain(int argc, wchar_t *argv[]) {
 	return 0;
 }
 
-//checks if a new package file is valid
+//checks if the new package file is valid
 bool validatePackage(dbpf::Package& oldPackage, dbpf::Package& newPackage, fstream& oldFile, fstream& newFile, wstring displayPath, dbpf::Mode mode) {
 	//package unpacking failed, getPackage already prints an error
 	if(!newPackage.unpacked) {
@@ -278,7 +278,7 @@ bool validatePackage(dbpf::Package& oldPackage, dbpf::Package& newPackage, fstre
 	}
 	
 	//should have the exact number of entries as the original package
-	//NOTE: getPackage doen not include the directory compressed files entry in the entries vector for both packages
+	//NOTE: getPackage does not include the directory of compressed files entry in the entries vector for both packages
 	if(oldPackage.entries.size() != newPackage.entries.size()) {
 		wcout << displayPath << L": Number of entries between old package and new package not matching" << endl;
 		return false;
