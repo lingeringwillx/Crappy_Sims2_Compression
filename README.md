@@ -16,4 +16,4 @@ To use it, just download the .exe file and put it in the same directory as The C
 
 Alternatively, you can just drag and drop your file or folder to the executable and it will be compressed.
 
-[For information on Refpack/QFS compression](https://github.com/lingeringwillx/Refpack-QFS-Resources/tree/main)
+[Refpack/QFS compression Information Repository](https://github.com/lingeringwillx/Refpack-QFS-Resources/tree/main)
