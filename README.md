@@ -42,11 +42,15 @@ Alternatively, you can just drag and drop your file or folder to the executable 
 
 [Java Implementation by java_dwarf](https://github.com/memo33/jDBPFX/blob/master/src/jdbpfx/util/DBPFPackager.java)
 
+[C# Implementation by @Afr0](https://github.com/riperiperi/FreeSO/blob/master/Other/tools/SimsLib/SimsLib/FAR3/Decompresser.cs)
+
 [JavaScript Implementation by @sebamarynissen](https://github.com/sebamarynissen/qfs-compression)
 
 [Python Implementation by @lah7](https://github.com/lah7/sims2-4k-ui-mod/blob/master/qfs.py)
 
 [C++ Implementations by me](https://github.com/lingeringwillx/CrappySims2Compression/blob/main/practice)
+
+[C# Implementation from SimPE by ambertation](https://github.com/luki122/simpe/blob/master/fullsimpe/SimPe%20Packages/PackedFile.cs)
 
 Implementations that only support the old header format (does not work with The Sims 2):
 
