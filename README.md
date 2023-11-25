@@ -50,6 +50,8 @@ Alternatively, you can just drag and drop your file or folder to the executable 
 
 [C++ Implementations by me](https://github.com/lingeringwillx/CrappySims2Compression/blob/main/practice)
 
+[Scala Implementation by @memo33](https://github.com/memo33/scdbpf/blob/master/src/main/scala/scdbpf/internal/QfsCompression.scala)
+
 [C# Implementation from SimPE by ambertation](https://github.com/luki122/simpe/blob/master/fullsimpe/SimPe%20Packages/PackedFile.cs)
 
 Implementations that only support the old header format (does not work with The Sims 2):
