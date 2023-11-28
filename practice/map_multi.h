@@ -69,6 +69,7 @@ namespace qfs {
 				
 				for(auto iter = positions.rbegin(); iter < end; iter++) {
 					uint prevPos = *iter;
+					
 					uint length = 2;
 					uint offset = pos - prevPos;
 					uint maxLen = getMin(src.size() - pos, 1028);
