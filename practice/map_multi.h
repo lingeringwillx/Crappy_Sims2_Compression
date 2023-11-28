@@ -69,20 +69,18 @@ namespace qfs {
 				
 				for(auto iter = positions.rbegin(); iter < end; iter++) {
 					uint prevPos = *iter;
-					
-					if(pos - prevPos > 131072) {
+					uint length = 2;
+					uint offset = pos - prevPos;
+					uint maxLen = getMin(src.size() - pos, 1028);
+
+					if(offset > 131072) {
 						break;
 					}
-					
-					uint length = 2;
-					uint maxLen = getMin(src.size() - pos, 1028);
 					
 					//find out how long the match is
 					while(length < maxLen && src[prevPos + length] == src[pos + length]) {
 						length++;
 					}
-					
-					uint offset = pos - prevPos;
 					
 					//check if the length and offset are valid
 					if(length > longestMatch.length && ((length >= 3 && offset <= 1024) || (offset <= 16384 && length >= 4) || length >= 5)) {
