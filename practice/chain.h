@@ -1,5 +1,8 @@
 //Hash chain pattern matcher
 
+/*the hash chain is similar to a hash map, the most recent values are stored in head, and past values are stored in prev
+it requires very little memory allocation/deallocation, and the allocation is only done once, which makes it very efficient*/
+
 //Compression: Good
 //Speed: Good
 //Memory Usage: Good
@@ -28,17 +31,17 @@ namespace qfs {
 		uint offset;
 	};
 	
-	//the hash chain is similar to a hash map, the most recent values are stored in head, and past values are stored in prev
-	//it requires very little memory allocation/deallocation, and the allocation is only done once, which makes it very efficient
-	//head is a hash map where the key is a hash created from a number of bytes in src
-	//and the value is the last position where the bytes could be found
-	//prev is a an array where the index is the position masked by the length of the sliding window
-	//and the value is the previous position that resolves to the same hash
 	class Table {
 		private:
 			bytes& src;
 			uint lastPos = 0;
+
+			/*head is a hash map where the key is a hash created from a number of bytes in src
+			and the value is the last position where the bytes could be found*/
 			vector<uint> head = vector<uint>(0x10000, 0xFFFFFFFF);
+
+			/*prev is a an array where the index is the position masked by the length of the sliding window
+			and the value is the previous position that resolves to the same hash*/
 			vector<uint> prev = vector<uint>(0x20000);
 			
 			uint getHash(uint pos) {
