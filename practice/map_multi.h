@@ -52,9 +52,7 @@ namespace qfs {
 			//check past values and find the longest matching pattern
 			Match getLongestMatch(uint pos) {
 				//add values to the table
-				if(pos > 0) {
-					addTo(pos - 1);
-				}
+				addTo(pos);
 				
 				auto& positions = map[getHash(pos)];
 				Match longestMatch = Match{0, 0, 0};

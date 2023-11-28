@@ -27,26 +27,10 @@ namespace qfs {
 	//it will fail if the compressed output >= decompressed input since it's better to store these assets uncompressed
 	//this typically happens with very small assets
 	bytes compress(bytes& src) {
-		//finding patterns
-		Table table = Table(src);
-		vector<Match> matches = vector<Match>();
-		
-		uint i = 1;
-		while(i <= src.size() - 3) {
-			Match match = table.getLongestMatch(i);
-			
-			if(match.length >= 3) {
-				matches.push_back(match);
-				i = match.location + match.length;
-			} else {
-				i++;
-			}
-		}
-		
-		//compress src
 		//compressed output has to smaller than the decompressed output, otherwise it's not useful
 		//maximum possible size of the compressed entry is 0xFFFFFF + 1 due to the fact that the compressed size in the header is only 3 bytes long
 		bytes dst = bytes(getMin(src.size() - 1, 16777216));
+		Table table = Table(src);
 		
 		uint srcPos = 0;
 		uint dstPos = 9;
@@ -55,9 +39,19 @@ namespace qfs {
 		//nCopy = number of bytes to compress
 		//offset = offset from current location in decompressed input to where the pattern could be found
 		
-		for(uint i = 0; i < matches.size(); i++) {
+		uint i = 0;
+		while(i < src.size() - 3) {
+			Match match = table.getLongestMatch(i);
+			
+			if(match.length >= 3) {
+				i = match.location + match.length;
+			} else {
+				i++;
+				continue;
+			}
+			
 			//copy bytes from src to dst until the location of the match is reached
-			uint plain = matches[i].location - srcPos;
+			uint plain = match.location - srcPos;
 			while(plain > 3) {
 				//max possible value is 112
 				//this can only be a multiple of 4, due to the 2-bit right shift in the control character
@@ -72,11 +66,11 @@ namespace qfs {
 				
 				copyBytes(src, srcPos, dst, dstPos, plain);
 				
-				plain = matches[i].location - srcPos;
+				plain = match.location - srcPos;
 			}
 			
-			uint nCopy = matches[i].length;
-			uint offset = matches[i].offset - 1; //subtraction is a part of the transformation for the offset, I think...
+			uint nCopy = match.length;
+			uint offset = match.offset - 1; //subtraction is a part of the transformation for the offset, I think...
 			
 			//apply weird QFS transformations
 			if(nCopy <= 10 && offset < 1024) {

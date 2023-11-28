@@ -50,9 +50,7 @@ namespace qfs {
 			//find the last match
 			Match getLongestMatch(uint pos) {
 				//add values to the table
-				if(pos > 0) {
-					addTo(pos - 1);
-				}
+				addTo(pos);
 				
 				auto iter = map.find(getHash(pos));
 				
