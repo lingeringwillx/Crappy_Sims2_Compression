@@ -47,7 +47,7 @@ namespace qfs {
 				}
 			}
 			
-			//find the last match
+			//find match
 			Match getLongestMatch(uint pos) {
 				//add values to the table
 				addTo(pos);
@@ -72,7 +72,7 @@ namespace qfs {
 					length++;
 				}
 				
-				if(offset <= 1024 || (offset <= 16384 && length >= 4) || length >= 5) {
+				if(offset <= 1024 || (length >= 4 && offset <= 16384) || length >= 5) {
 					return Match{pos, length, offset};
 				} else {
 					return Match{0, 0, 0};
