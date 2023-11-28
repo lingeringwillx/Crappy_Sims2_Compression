@@ -5,7 +5,7 @@
 //Memory Usage: Good
 //Difficulty: Hard
 
-#include "map_single.h"
+#include "chain.h"
 #include <vector>
 
 namespace qfs {
