@@ -28,7 +28,8 @@ namespace qfs {
 		uint offset;
 	};
 	
-	//hashtable where the keys are 2 bytes sequences from src converted to integers, and the values are a list of the positions where the 2 bytes sequence could be found
+	/*hashtable where the keys are 2 bytes sequences from src converted to integers
+	and the values are a list of the positions where the 2 bytes sequence could be found*/
 	class Table {
 		private:
 			bytes& src;

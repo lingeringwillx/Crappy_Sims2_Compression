@@ -290,7 +290,8 @@ namespace dbpf {
 		/*this is an optimization to skip package files that have already been compressed by this tool in the past
 		a hole is added by the compressor containing information about the compression used by the compressor, plus the complete file size
 			
-		holes are junk data, a placeholder for when the game deletes a specific entry, and are ignored by the game and by most unpacking tools, however here we are exploiting them to store some information
+		holes are junk data, a placeholder for when the game deletes a specific entry, and are ignored by the game and by most unpacking tools
+		however here we are exploiting them to store some data
 		
 		signature format is:
 			DWORD signature = 0 if the file is decompressed, "BRG5" if the file is compressed
