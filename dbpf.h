@@ -205,7 +205,7 @@ namespace dbpf {
 		uint magic = getInt(buffer, pos);
 		
 		if(magic != DBPF_MAGIC) {
-			wcout << displayPath << L": DBPF_MAGIC header not found" << endl;
+			wcout << displayPath << L": Magic header not found" << endl;
 			return Package{false};
 		}
 		
@@ -385,7 +385,7 @@ namespace dbpf {
 			//check if the entries are compressed
 			for(auto& entry: package.entries) {
 				auto iter = package.compressedEntries.find(CompressedEntry{entry.type, entry.group, entry.instance, entry.resource});
-				if(entry.size > 9 && iter != package.compressedEntries.end()) {
+				if(entry.size >= 9 && iter != package.compressedEntries.end()) {
 					bytes header = readFile(file, entry.location, 9);
 					
 					if(header[4] == 0x10 && header[5] == 0xFB) {
