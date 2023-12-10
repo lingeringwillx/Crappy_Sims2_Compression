@@ -104,16 +104,17 @@ int wmain(int argc, wchar_t *argv[]) {
 		}
 		
 		//get package
-		dbpf::Package oldPackage = dbpf::getPackage(file, displayPath, mode);
-		dbpf::Package package = oldPackage; //copy
+		dbpf::Package package = dbpf::getPackage(file, displayPath, mode);
+		dbpf::Package oldPackage = package; //copy
 		
 		//optimization: if the package file has the compressor's signature then skip it
-		if(package.signature_in_package) {
+		if(mode != dbpf::DECOMPRESS && package.signature_in_package) {
 			mode = dbpf::SKIP;
 			file.close();
+		}
 		
-		//error unpacking package
-		} else if(!package.unpacked) {
+		//error unpacking package, getPackage already prints an error so there is no need to print one here
+		if(!package.unpacked) {
 			file.close();
 			continue;
 		}
@@ -167,9 +168,7 @@ int wmain(int argc, wchar_t *argv[]) {
 			
 			//validate new file
 			tempFile.seekg(0, ios::beg);
-			
-			//VALIDATE mode is a quick hack that makes getPackage finish unpacking even if the compressor's signature is not found
-			dbpf::Package newPackage = dbpf::getPackage(tempFile, tempFileName, dbpf::VALIDATE);
+			dbpf::Package newPackage = dbpf::getPackage(tempFile, tempFileName, mode);
 			bool is_valid = validatePackage(oldPackage, newPackage, file, tempFile, displayPath, mode);
 			
 			file.close();
@@ -237,44 +236,46 @@ bool validatePackage(dbpf::Package& oldPackage, dbpf::Package& newPackage, fstre
 		return false;
 	}
 	
-	//should only have one hole for the compressor signature
-	if(newPackage.header.holeIndexEntryCount != 1) {
-		wcout << displayPath << L": Wrong hole index count" << endl;
-		return false;
-	}
-	
-	//one hole index entry is 8 bytes long
-	if(newPackage.header.holeIndexSize != 8) {
-		wcout << displayPath << L": Wrong hole index size" << endl;
-		return false;
-	}
-	
-	dbpf::Hole hole = newPackage.holes[0];
-	
-	//compressor signature is 8 bytes long
-	if(hole.size != 8) {
-		wcout << L": Wrong hole index content" << endl;
-		return false;
-	}
-	
-	bytes holeData = dbpf::readFile(newFile, hole.location, 8);
-	uint pos = 0;
-	
-	uint sig = dbpf::getInt(holeData, pos);
-	
-	//if the file was compressed then the signature should be "BRG5", if the file was decompressed then the signature should be 0
-	if(!((mode != dbpf::DECOMPRESS && sig == dbpf::SIGNATURE) || (mode == dbpf::DECOMPRESS && sig == 0))) {
-		wcout << displayPath << L": Compressor signature not found" << endl;
-		return false;
-	}
-	
-	uint fileSizeInHole = dbpf::getInt(holeData, pos);
-	uint fileSize = dbpf::getFileSize(newFile);
-	
-	//file size written in the hole should match the actual file size
-	if(fileSizeInHole != fileSize) {
-		wcout << displayPath << L": File size in signature does not match the actual file size" << endl;
-		return false;
+	if(mode != dbpf::DECOMPRESS) {
+		//should only have one hole for the compressor signature
+		if(newPackage.header.holeIndexEntryCount != 1) {
+			wcout << displayPath << L": Wrong hole index count" << endl;
+			return false;
+		}
+		
+		//one hole index entry is 8 bytes long
+		if(newPackage.header.holeIndexSize != 8) {
+			wcout << displayPath << L": Wrong hole index size" << endl;
+			return false;
+		}
+		
+		dbpf::Hole hole = newPackage.holes[0];
+		
+		//compressor signature is 8 bytes long
+		if(hole.size != 8) {
+			wcout << L": Wrong hole size" << endl;
+			return false;
+		}
+		
+		bytes holeData = dbpf::readFile(newFile, hole.location, 8);
+		uint pos = 0;
+		
+		uint sig = dbpf::getInt(holeData, pos);
+		
+		//if the file was compressed then the signature should be "BRG5"
+		if(sig != dbpf::SIGNATURE) {
+			wcout << displayPath << L": Compressor signature not found" << endl;
+			return false;
+		}
+		
+		uint fileSizeInHole = dbpf::getInt(holeData, pos);
+		uint fileSize = dbpf::getFileSize(newFile);
+		
+		//file size written in the hole should match the actual file size
+		if(fileSizeInHole != fileSize) {
+			wcout << displayPath << L": File size in signature does not match the actual file size" << endl;
+			return false;
+		}
 	}
 	
 	//should have the exact number of entries as the original package

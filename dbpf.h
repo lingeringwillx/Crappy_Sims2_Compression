@@ -62,10 +62,9 @@ namespace dbpf {
 	DECOMPRESS: decompress the package
 	RECOMPRESS: decompress the package's entries then compress them again, can result in better compression if the older compression is weak
 	SKIP: don't do anything with the package
-	VALIDATE: don't check for the compressor signature in getPackage
+	*/
 	
-	SKIP and VALIDATE can't be used as a default modes as they are not supported by every part of the tool*/
-	enum Mode { COMPRESS, DECOMPRESS, RECOMPRESS, SKIP, VALIDATE };
+	enum Mode { COMPRESS, DECOMPRESS, RECOMPRESS, SKIP };
 	
 	//representing the header of a package file
 	struct Header {
@@ -204,6 +203,7 @@ namespace dbpf {
 		
 		//package file magic header "DBPF" should be the first 4 bytes of any dbpf package file
 		uint magic = getInt(buffer, pos);
+		
 		if(magic != DBPF_MAGIC) {
 			wcout << displayPath << L": DBPF_MAGIC header not found" << endl;
 			return Package{false};
@@ -231,7 +231,6 @@ namespace dbpf {
 			minor version = [0, 1, 2]
 			index major version = 7
 			index minor version = [0, 1, 2]
-			
 		if different values are encountered, then the package is likely a package file for another game*/
 		
 		if(package.header.majorVersion != 1 || (package.header.minorVersion != 0 && package.header.minorVersion != 1 && package.header.minorVersion != 2) || package.header.indexMajorVersion != 7) {
@@ -288,7 +287,7 @@ namespace dbpf {
 			package.holes.push_back(Hole{location, size});
 		}
 		
-		//check for compressor signature
+		//check for the compressor signature
 		
 		/*this is an optimization to skip package files that have already been compressed by this tool in the past
 		a hole is added by the compressor containing information about the compression used by the compressor, plus the complete file size
@@ -297,7 +296,7 @@ namespace dbpf {
 		however here we are exploiting them to store some data
 		
 		signature format is:
-			DWORD signature = 0 if the file is decompressed, "BRG5" if the file is compressed
+			DWORD signature = "BRG5"
 			DWORD file size
 			
 		"BRG5" refers to the compression algorithm used by this compressor, which is an implementation of EA's Refpack/QFS compression algorithm written by Ben Rudiak-Gould adjusted to use zlib's level 5 compression parameters
@@ -305,8 +304,8 @@ namespace dbpf {
 		if the signature is found and the file size has not changed then we can skip the file
 		*/
 		
-		if(mode != VALIDATE && package.header.holeIndexEntryCount == 1 && package.holes[0].size == 8) {
-			dbpf::Hole hole = package.holes[0];
+		if(package.header.holeIndexEntryCount == 1 && package.holes[0].size == 8) {
+			Hole hole = package.holes[0];
 			
 			//boundary checks
 			if(hole.location > fileSize || hole.location + hole.size > fileSize) {
@@ -314,15 +313,15 @@ namespace dbpf {
 				return Package{false}; 
 			}
 			
-			buffer = dbpf::readFile(file, hole.location, 8);
+			buffer = readFile(file, hole.location, 8);
 			pos = 0;
 			
-			uint sig = dbpf::getInt(buffer, pos);
-			uint fileSizeInHole = dbpf::getInt(buffer, pos);
+			uint sig = getInt(buffer, pos);
+			uint fileSizeInHole = getInt(buffer, pos);
 			
-			if(((mode != DECOMPRESS && sig == SIGNATURE) || (mode == DECOMPRESS && sig == 0)) && fileSizeInHole == fileSize) {
-				//package has already been compressed/decompressed by this compressor in the past, skip
-				return Package{false, true};
+			if(sig == SIGNATURE && fileSizeInHole == fileSize) {
+				//the package has been compressed by this compressor in the past and has not changed since
+				package.signature_in_package = true;
 			}
 		}
 		
@@ -398,19 +397,21 @@ namespace dbpf {
 		}
 		
 		//check if entries with repeated TGIRs exist (we don't want to compress those)
-		unordered_map<Entry, uint, hashFunction, equalFunction> entriesMap;
-		entriesMap.reserve(package.entries.size());
-		
-		for(uint i = 0; i < package.entries.size(); i++) {
-			auto iter = entriesMap.find(package.entries[i]);
-			if(iter != entriesMap.end()) {
-				uint j = iter->second;
+		if(mode != DECOMPRESS) {
+			unordered_map<Entry, uint, hashFunction, equalFunction> entriesMap;
+			entriesMap.reserve(package.entries.size());
+			
+			for(uint i = 0; i < package.entries.size(); i++) {
+				auto iter = entriesMap.find(package.entries[i]);
+				if(iter != entriesMap.end()) {
+					uint j = iter->second;
 
-				package.entries[i].repeated = true;
-				package.entries[j].repeated = true;
+					package.entries[i].repeated = true;
+					package.entries[j].repeated = true;
 
-			} else {
-				entriesMap[package.entries[i]] = i;
+				} else {
+					entriesMap[package.entries[i]] = i;
+				}
 			}
 		}
 
@@ -540,27 +541,25 @@ namespace dbpf {
 		uint indexEnd = newFile.tellp();
 		
 		//write compressor signature as a hole and write the hole index
-		uint holeLocation = newFile.tellp();
-		uint holeIndexLocation = holeLocation + 8;
-		uint fileSize = holeLocation + 16;
+		uint holeIndexLocation = indexEnd;
 		
-		buffer = bytes(16);
-		pos = 0;
-		
-		//hole
-		if(mode == DECOMPRESS) {
-			putInt(buffer, pos, 0);
-		} else {
+		if(mode != DECOMPRESS) {
+			uint holeLocation = holeIndexLocation + 8;
+			uint fileSize = holeLocation + 8;
+			
+			buffer = bytes(16);
+			pos = 0;
+			
+			//hole index
+			putInt(buffer, pos, holeLocation);
+			putInt(buffer, pos, 8); //hole size
+			
+			//hole
 			putInt(buffer, pos, SIGNATURE);
+			putInt(buffer, pos, fileSize);
+			
+			writeFile(newFile, buffer);
 		}
-		
-		putInt(buffer, pos, fileSize);
-		
-		//hole index
-		putInt(buffer, pos, holeLocation);
-		putInt(buffer, pos, 8); //hole size
-		
-		writeFile(newFile, buffer);
 
 		//update the header with index info
 		newFile.seekp(36);
@@ -571,9 +570,12 @@ namespace dbpf {
 		putInt(buffer, pos, package.entries.size()); //index entry count
 		putInt(buffer, pos, indexStart); //index location
 		putInt(buffer, pos, indexEnd - indexStart); //index size
-		putInt(buffer, pos, 1); //hole index entry count
-		putInt(buffer, pos, holeIndexLocation); //hole index location
-		putInt(buffer, pos, 8); //hole index size
+		
+		if(mode != DECOMPRESS) {
+			putInt(buffer, pos, 1); //hole index entry count
+			putInt(buffer, pos, holeIndexLocation); //hole index location
+			putInt(buffer, pos, 8); //hole index size
+		} //else the rest is zero
 		
 		writeFile(newFile, buffer);
 	}
