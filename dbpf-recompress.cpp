@@ -108,7 +108,7 @@ int wmain(int argc, wchar_t *argv[]) {
 		dbpf::Package oldPackage = package; //copy
 		
 		//optimization: if the package file has the compressor's signature then skip it
-		if(mode != dbpf::DECOMPRESS && package.signature_in_package) {
+		if(mode == dbpf::RECOMPRESS && package.signature_in_package) {
 			mode = dbpf::SKIP;
 			file.close();
 		}
@@ -119,25 +119,8 @@ int wmain(int argc, wchar_t *argv[]) {
 			continue;
 		}
 		
-		//optimization: for COMPRESS mode skip the package file if all of it's entries are compressed
-		//note: this is not the default mode
-		if(mode == dbpf::COMPRESS) {
-			bool all_entries_compressed = true;
-			
-			for(auto& entry: package.entries) {
-				if(!entry.compressed) {
-					all_entries_compressed = false;
-					break;
-				}
-			}
-			
-			if(all_entries_compressed) {
-				mode = dbpf::SKIP;
-				file.close();
-			}
-			
 		//optimization: for DECOMPRESS mode skip the package file if all of it's entries are decompressed
-		} else if(mode == dbpf::DECOMPRESS) {
+		if(mode == dbpf::DECOMPRESS) {
 			bool all_entries_decompressed = true;
 			
 			for(auto& entry: package.entries) {
@@ -236,7 +219,7 @@ bool validatePackage(dbpf::Package& oldPackage, dbpf::Package& newPackage, fstre
 		return false;
 	}
 	
-	if(mode != dbpf::DECOMPRESS) {
+	if(mode == dbpf::RECOMPRESS) {
 		//should only have one hole for the compressor signature
 		if(newPackage.header.holeIndexEntryCount != 1) {
 			wcout << displayPath << L": Wrong hole index count" << endl;

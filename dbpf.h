@@ -58,13 +58,12 @@ namespace dbpf {
 	}
 	
 	/* compression mode
-	COMPRESS: compress uncompress entries only
-	DECOMPRESS: decompress the package
 	RECOMPRESS: decompress the package's entries then compress them again, can result in better compression if the older compression is weak
+	DECOMPRESS: decompress the package
 	SKIP: don't do anything with the package
 	*/
 	
-	enum Mode { COMPRESS, DECOMPRESS, RECOMPRESS, SKIP };
+	enum Mode { RECOMPRESS, DECOMPRESS, SKIP };
 	
 	//representing the header of a package file
 	struct Header {
@@ -390,14 +389,13 @@ namespace dbpf {
 					
 					if(header[4] == 0x10 && header[5] == 0xFB) {
 						entry.compressed = true;
-						entry.uncompressedSize = getUncompressedSize(header);
 					}
 				}
 			}
 		}
 		
 		//check if entries with repeated TGIRs exist (we don't want to compress those)
-		if(mode != DECOMPRESS) {
+		if(mode == RECOMPRESS) {
 			unordered_map<Entry, uint, hashFunction, equalFunction> entriesMap;
 			entriesMap.reserve(package.entries.size());
 			
@@ -435,10 +433,7 @@ namespace dbpf {
 		putInt(buffer, pos, package.header.indexMajorVersion);
 		pos += 24; //skip index and hole info, update later
 		putInt(buffer, pos, package.header.indexMinorVersion);
-		
-		for(uint i = 0; i < package.header.remainder.size(); i++) {
-			buffer[pos++] = package.header.remainder[i];
-		}
+		copy(package.header.remainder.begin(), package.header.remainder.end(), buffer.begin() + 64);
 
 		writeFile(newFile, buffer);
 
@@ -454,12 +449,10 @@ namespace dbpf {
 			bytes content = readFile(oldFile, entry.location, entry.size);
 			omp_unset_lock(&lock);
 			
-			if(mode == DECOMPRESS) {
-				content = decompressEntry(entry, content);
-			} else if(mode == RECOMPRESS) {
+			if(mode == RECOMPRESS) {
 				content = recompressEntry(entry, content);
-			} else {
-				content = compressEntry(entry, content);
+			} else if(mode == DECOMPRESS) {
+				content = decompressEntry(entry, content);
 			}
 			
 			entry.size = content.size();
@@ -543,7 +536,7 @@ namespace dbpf {
 		//write compressor signature as a hole and write the hole index
 		uint holeIndexLocation = indexEnd;
 		
-		if(mode != DECOMPRESS) {
+		if(mode == RECOMPRESS) {
 			uint holeLocation = holeIndexLocation + 8;
 			uint fileSize = holeLocation + 8;
 			
@@ -571,7 +564,7 @@ namespace dbpf {
 		putInt(buffer, pos, indexStart); //index location
 		putInt(buffer, pos, indexEnd - indexStart); //index size
 		
-		if(mode != DECOMPRESS) {
+		if(mode == RECOMPRESS) {
 			putInt(buffer, pos, 1); //hole index entry count
 			putInt(buffer, pos, holeIndexLocation); //hole index location
 			putInt(buffer, pos, 8); //hole index size
