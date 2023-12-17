@@ -5,7 +5,7 @@
 //Memory Usage: Good
 //Difficulty: Hard
 
-#include "chain.h"
+#include "hash_chain.h"
 #include <vector>
 
 namespace qfs {
