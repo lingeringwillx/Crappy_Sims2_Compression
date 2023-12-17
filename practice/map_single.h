@@ -1,4 +1,4 @@
-//Map for pattern matcher
+//Map pattern matcher
 
 //Compression: Okay
 //Speed: Okay
