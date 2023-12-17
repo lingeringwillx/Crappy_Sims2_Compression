@@ -61,7 +61,7 @@ namespace qfs {
 					return bytes();
 				}
 				
-				// 111ppppp
+				// 111ppp00
 				dst[dstPos++] = 0b11100000 + ((plain - 4) >> 2);
 				
 				copyBytes(src, srcPos, dst, dstPos, plain);
