@@ -83,7 +83,7 @@ namespace qfs {
 					}
 					
 					//check if the length and offset are valid
-					if(length > longestMatch.length && ((length >= 3 && offset <= 1024) || (offset <= 16384 && length >= 4) || length >= 5)) {
+					if(length > longestMatch.length && ((length >= 3 && offset <= 1024) || (length >= 4 && offset <= 16384) || length >= 5)) {
 						longestMatch = Match{pos, length, offset};
 						
 						if(length >= GOOD_LENGTH) {
