@@ -1,10 +1,5 @@
 //(Unused) This is a simple implementation of the QFS compression
 
-//Compression: Good
-//Speed: Good
-//Memory Usage: Good
-//Difficulty: Hard
-
 #include "hash_chain.h"
 #include <vector>
 
