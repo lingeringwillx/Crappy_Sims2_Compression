@@ -35,7 +35,7 @@ namespace qfs {
 		//offset = offset from current location in decompressed input to where the pattern could be found
 		
 		uint i = 0;
-		while(i < src.size() - 3) {
+		while(i <= src.size() - 3) {
 			Match match = table.getLongestMatch(i);
 			
 			if(match.length >= 3) {
@@ -145,7 +145,8 @@ namespace qfs {
 		dst[7] = uncompressedSize >> 8;
 		dst[8] = uncompressedSize;
 		
-		return bytes(dst.begin(), dst.begin() + dstPos);
+		dst.resize(dstPos);
+		return dst;
 	}
 
 	//decompresses src, returns an empty vector if decompression fails
@@ -215,11 +216,15 @@ namespace qfs {
 				offset = 0;
 			}
 			
-			if(srcPos + plain > src.size() || dstPos + plain + nCopy > dst.size())  {
+			if(srcPos + plain > src.size() || dstPos + plain > dst.size())  {
 				return bytes();
 			}
 			
 			copyBytes(src, srcPos, dst, dstPos, plain);
+			
+			if(offset > dstPos || dstPos + nCopy > dst.size()) {
+				return bytes();
+			}
 			
 			//copy bytes from an earlier location in the decompressed output
 			uint fromOffset = dstPos - offset;
