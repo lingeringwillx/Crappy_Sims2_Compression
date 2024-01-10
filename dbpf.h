@@ -189,7 +189,7 @@ namespace dbpf {
 		file.seekg(0);
 		uint fileSize = getFileSize(file);
 		
-		if(fileSize < 64) {
+		if(fileSize < 96) {
 			wcout << displayPath << L": Header not found" << endl;
 			return Package{false};
 		}
