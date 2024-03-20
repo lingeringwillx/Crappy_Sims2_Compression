@@ -384,12 +384,10 @@ namespace dbpf {
 			//check if the entries are compressed
 			for(auto& entry: package.entries) {
 				auto iter = package.compressedEntries.find(CompressedEntry{entry.type, entry.group, entry.instance, entry.resource});
-				if(entry.size >= 9 && iter != package.compressedEntries.end()) {
-					bytes header = readFile(file, entry.location, 9);
-					
-					if(header[4] == 0x10 && header[5] == 0xFB) {
-						entry.compressed = true;
-					}
+				entry.compressed = iter != package.compressedEntries.end();
+				
+				if(entry.compressed) {
+					entry.uncompressedSize = iter->uncompressedSize;
 				}
 			}
 		}
@@ -438,16 +436,19 @@ namespace dbpf {
 		writeFile(newFile, buffer);
 
 		//compress and write entries, and save the location and size for the index
-		omp_lock_t lock;
-		omp_init_lock(&lock);
+		omp_lock_t r_lock;
+		omp_lock_t w_lock;
+		
+		omp_init_lock(&r_lock);
+		omp_init_lock(&w_lock);
 		
 		#pragma omp parallel for
 		for(int i = 0; i < package.entries.size(); i++) {
 			auto& entry = package.entries[i];
 			
-			omp_set_lock(&lock);
+			omp_set_lock(&r_lock);
 			bytes content = readFile(oldFile, entry.location, entry.size);
-			omp_unset_lock(&lock);
+			omp_unset_lock(&r_lock);
 			
 			if(mode == RECOMPRESS) {
 				content = recompressEntry(entry, content);
@@ -462,15 +463,16 @@ namespace dbpf {
 				entry.uncompressedSize = getUncompressedSize(content);
 			}
 			
-			omp_set_lock(&lock);
+			omp_set_lock(&w_lock);
 			
 			entry.location = newFile.tellp();
 			writeFile(newFile, content);
 			
-			omp_unset_lock(&lock);
+			omp_unset_lock(&w_lock);
 		}
 		
-		omp_destroy_lock(&lock);
+		omp_destroy_lock(&r_lock);
+		omp_destroy_lock(&w_lock);
 		
 		//make and write the directory of compressed files
 		bytes clstContent;

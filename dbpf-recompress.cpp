@@ -284,20 +284,31 @@ bool validatePackage(dbpf::Package& oldPackage, dbpf::Package& newPackage, fstre
 		bytes newContent = dbpf::readFile(newFile, newEntry.location, newEntry.size);
 		
 		//compression info in the directory of compressed files should match the information in the compression header
-		bool compressed_in_header = newContent[4] == 0x10 && newContent[5] == 0xFB;
-		bool in_clst = newPackage.compressedEntries.find(dbpf::CompressedEntry{newEntry.type, newEntry.group, newEntry.instance, newEntry.resource}) != newPackage.compressedEntries.end();
+		bool compressed_in_header = newContent.size() >= 9 && newContent[4] == 0x10 && newContent[5] == 0xFB;
+		auto iter = newPackage.compressedEntries.find(dbpf::CompressedEntry{newEntry.type, newEntry.group, newEntry.instance, newEntry.resource});
+		bool in_clst = iter != newPackage.compressedEntries.end();
 		
 		if(compressed_in_header != in_clst) {
 			wcout << displayPath << L": Incorrect compression information" << endl;
 			return false;
 		}
 		
-		//the compressor should only produce compressed entries that are smaller than the original decompressed entries
 		if(newEntry.compressed) {
 			uint tempPos = 0;
 			uint uncompressedSize = dbpf::getUncompressedSize(newContent);
 			uint compressedSize = dbpf::getInt(newContent, tempPos);
 			
+			if(uncompressedSize != iter->uncompressedSize) {
+				wcout << displayPath << L": Mismatch between the uncompressed size in the compression header and the uncompressed size in the CLST" << endl;
+				return false;
+			}
+			
+			if(compressedSize != newEntry.size) {
+				wcout << displayPath << L": Mismatch between the compressed size in the compression header and the compressed size in the index" << endl;
+				return false;
+			}
+			
+			//the compressor should only produce compressed entries that are smaller than the original decompressed entries
 			if(compressedSize > uncompressedSize) {
 				wcout << displayPath << L": Compressed size is larger than the uncompressed size for one entry" << endl;
 				return false;
