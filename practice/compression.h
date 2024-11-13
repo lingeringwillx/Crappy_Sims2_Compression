@@ -56,7 +56,7 @@ namespace qfs {
 					return bytes();
 				}
 				
-				// 111ppp00
+				// 111ppppp
 				dst[dstPos++] = 0b11100000 + ((plain - 4) >> 2);
 				
 				copyBytes(src, srcPos, dst, dstPos, plain);
@@ -204,7 +204,7 @@ namespace qfs {
 				offset = ((b0 & 0b00010000) << 12) + (b1 << 8) + b2 + 1; //1-131072
 				
 			} else if(b0 < 0xFC) {
-				// 111ppp00
+				// 111ppppp
 				plain = ((b0 & 0b00011111) << 2) + 4; //4-112
 				nCopy = 0;
 				offset = 0;
